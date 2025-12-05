@@ -55,7 +55,8 @@ START:
 
     // pre-compute FIFO data addresses
     MOV REG_FIFO_ADDR, ADC_BASE_ADDR
-    ADD REG_FIFO_ADDR, REG_FIFO_ADDR, 0x100
+    MOV REG_TEMP, 0x100
+    ADD REG_FIFO_ADDR, REG_FIFO_ADDR, REG_TEMP
 
     // Enable ADC module (write 0x07 to CTRL register)
     MOV REG_TEMP, 0x07
@@ -110,7 +111,8 @@ POLL_FIFO:
     // 3. Read ADC Result
     // -------------------------
     LBBO REG_ADC_VALUE, REG_FIFO_ADDR, 0, 4
-    AND REG_ADC_VALUE, REG_ADC_VALUE, 0x0FFF   // Mask to 12 bits
+    MOV REG_TEMP, 0x0FFF
+    AND REG_ADC_VALUE, REG_ADC_VALUE, REG_TEMP   // Mask to 12 bits
 
     // -------------------------
     // 4. Store Sample in Current Buffer
@@ -126,7 +128,8 @@ POLL_FIFO:
     // -------------------------
     // 6. Check if Buffer is Full
     // -------------------------
-    QBNE TIMING_DELAY, REG_SAMPLE_COUNT, BUFFER_SIZE
+    MOV REG_TEMP, 1024
+    QBNE TIMING_DELAY, REG_SAMPLE_COUNT, REG_TEMP
 
     // Buffer is full! Switch buffers
     SBBO REG_CURRENT_BUFFER, REG_FLAGS_ADDR, 0, 1  // Set ready flag
