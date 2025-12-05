@@ -64,9 +64,9 @@ void MainWindow::updateSpectrum(const SpectrumData &data) {
     QVector<double> mags  = data.magnitudes;
 
     // Zero out DC component
-    if (!mags.isEmpty()) {
-        mags[0] = -80.0;
-    }
+    //if (!mags.isEmpty()) {
+    //    mags[0] = -80.0;
+    //}
 
     m_plot->graph(0)->setData(freqs, mags);
     m_plot->replot();

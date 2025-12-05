@@ -87,7 +87,7 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     QVector<double> samples;
     for (int i = 0; i < numSamples; i++) {
 	double t = i / (double)SAMPLE_RATE;
-	double value = 0.9 + 0.3 * sin(2.0 * M_PI * 1000.0 * t);
+	double value = 0.9 + 0.3 * sin(2.0 * M_PI * 10000.0 * t);
 	samples.append(value);
     }
     return samples;
@@ -135,9 +135,9 @@ void DSPThread::computeFFT(const QVector<double> &samples,
     magnitudes.clear();
 
     // DC component
-    double mag = fabs(m_fftOutput[0]);
-    double db = 20.0 * log10(mag + 1e-10);
-    magnitudes.append(qMax(db, -80.0));
+    //double mag = fabs(m_fftOutput[0]);
+    //double db = 20.0 * log10(mag + 1e-10);
+    //magnitudes.append(qMax(db, -80.0));
 
     // Other bins (half-complex format)
     for (int i = 1; i < FFT_SIZE / 2; i++) {
@@ -176,7 +176,7 @@ void DSPThread::run() {
         computeFFT(samples, data.magnitudes);
 
         // Generate frequency bins
-        for (int i = 0; i < data.numBins; i++) {
+        for (int i = 1; i < data.numBins; i++) {
             double freq = i * SAMPLE_RATE / (double)FFT_SIZE;
             data.frequencies.append(freq);
         }
