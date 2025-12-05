@@ -17,6 +17,7 @@
 #define REG_ADC_VALUE       r5      // ADC sample value
 #define REG_CURRENT_BUFFER  r6      // Which buffer (1=A, 2=B)
 #define REG_FLAGS_ADDR      r7      // Address of control flags
+#define REG_FIFO_ADDR       r8      // pre-computed FIFO address
 
 // ============================================================================
 // Memory Map
@@ -51,6 +52,10 @@
 START:
     // Initialize ADC base address
     MOV REG_ADC_BASE, ADC_BASE_ADDR
+
+    // pre-compute FIFO data addresses
+    MOV REG_FIFO_ADDR, ADC_BASE_ADDR
+    ADD REG_FIFO_ADDR, REG_FIFO_ADDR, 0x100
 
     // Enable ADC module (write 0x07 to CTRL register)
     MOV REG_TEMP, 0x07
@@ -104,7 +109,7 @@ POLL_FIFO:
     // -------------------------
     // 3. Read ADC Result
     // -------------------------
-    LBBO REG_ADC_VALUE, REG_ADC_BASE, ADC_FIFO0DATA, 4
+    LBBO REG_ADC_VALUE, REG_FIFO_ADDR, 0, 4
     AND REG_ADC_VALUE, REG_ADC_VALUE, 0x0FFF   // Mask to 12 bits
 
     // -------------------------
