@@ -123,6 +123,7 @@ void DSPThread::applyHannWindow(QVector<double> &samples) {
 
 void DSPThread::computeFFT(const QVector<double> &samples,
                            QVector<double> &magnitudes) {
+    double mag, db;
     // Copy samples to FFT input buffer
     for (int i = 0; i < FFT_SIZE; i++) {
         m_fftInput[i] = samples[i];
