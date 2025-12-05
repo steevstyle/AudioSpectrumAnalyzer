@@ -51,8 +51,6 @@ void DSPThread::cleanupFFT() {
 }
 
 void* DSPThread::mapPRUMemory() {
-    return nullptr;
-    /* Commenting out for now
     m_pruMemFd = open("/dev/mem", O_RDWR | O_SYNC);
     if (m_pruMemFd < 0) {
         return nullptr;
@@ -69,7 +67,6 @@ void* DSPThread::mapPRUMemory() {
 
     m_pruBuffer = (uint16_t*)mapped;
     return mapped;
-    */
 }
 
 void DSPThread::unmapPRUMemory() {
@@ -85,24 +82,18 @@ void DSPThread::unmapPRUMemory() {
 
 QVector<double> DSPThread::readPRUSamples(int numSamples) {
     QVector<double> samples;
-    for (int i = 0; i < numSamples; i++) {
-	double t = i / (double)SAMPLE_RATE;
-	double value = 0.9 + 0.3 * sin(2.0 * M_PI * 10000.0 * t);
-	samples.append(value);
-    }
-    return samples;
-    /* DISABLE PRU FOR NOW
+
     if (!m_pruBuffer) {
-        // Generate test data (sine wave at 1 kHz)
+        //fallback synthetic signal (10kHz sine wave)
         for (int i = 0; i < numSamples; i++) {
             double t = i / (double)SAMPLE_RATE;
-            double value = 0.9 + 0.3 * sin(2.0 * M_PI * 1000.0 * t);
+            double value = 0.9 + 0.3 * sin(2.0 * M_PI * 10000.0 * t);
             samples.append(value);
         }
         return samples;
-    //}
-    
-    // Read from PRU buffer
+    }
+
+    // read from shared memory written to by adc_sampler
     for (int i = 0; i < numSamples; i++) {
         uint16_t raw = m_pruBuffer[i];
         double voltage = (raw / 4095.0) * 1.8;  // Convert to voltage
@@ -159,7 +150,12 @@ void DSPThread::run() {
     m_running = true;
 
     // Try to map PRU memory
-    // mapPRUMemory();
+    mapPRUMemory();
+    if (m_pruBuffer) {
+        qDebug() << "Successfully mapped shared memory - using real ADC data";
+    } else {
+        qDebug() << "Could not map shared memory - using test signal";
+    }
 
     while (m_running) {
         // Read samples
