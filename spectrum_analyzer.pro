@@ -5,6 +5,8 @@ TEMPLATE = app
 
 CONFIG += c++11
 
+INCLUDEPATH += /home/stopkins/lab5/fftw-arm/include
+
 HEADERS = \
     mainwindow.h \
     dspthread.h \
@@ -17,7 +19,7 @@ SOURCES = \
     dspthread.cpp \
     qcustomplot.cpp
 
-LIBS += -lfftw3 -lpthread -lm
+LIBS += -Wl,--whole-archive /home/stopkins/lab5/fftw-arm/lib/libfftw3.a -Wl,--no-whole-archive -lpthread -lm
 
 target.path = /root
 INSTALLS += target

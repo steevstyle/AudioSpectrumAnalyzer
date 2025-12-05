@@ -51,6 +51,8 @@ void DSPThread::cleanupFFT() {
 }
 
 void* DSPThread::mapPRUMemory() {
+    return nullptr;
+    /* Commenting out for now
     m_pruMemFd = open("/dev/mem", O_RDWR | O_SYNC);
     if (m_pruMemFd < 0) {
         return nullptr;
@@ -67,6 +69,7 @@ void* DSPThread::mapPRUMemory() {
 
     m_pruBuffer = (uint16_t*)mapped;
     return mapped;
+    */
 }
 
 void DSPThread::unmapPRUMemory() {
@@ -82,7 +85,13 @@ void DSPThread::unmapPRUMemory() {
 
 QVector<double> DSPThread::readPRUSamples(int numSamples) {
     QVector<double> samples;
-
+    for (int i = 0; i < numSamples; i++) {
+	double t = i / (double)SAMPLE_RATE;
+	double value = 0.9 + 0.3 * sin(2.0 * M_PI * 1000.0 * t);
+	samples.append(value);
+    }
+    return samples;
+    /* DISABLE PRU FOR NOW
     if (!m_pruBuffer) {
         // Generate test data (sine wave at 1 kHz)
         for (int i = 0; i < numSamples; i++) {
@@ -91,8 +100,8 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
             samples.append(value);
         }
         return samples;
-    }
-
+    //}
+    
     // Read from PRU buffer
     for (int i = 0; i < numSamples; i++) {
         uint16_t raw = m_pruBuffer[i];
@@ -101,6 +110,7 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     }
 
     return samples;
+    */
 }
 
 void DSPThread::applyHannWindow(QVector<double> &samples) {
@@ -148,7 +158,7 @@ void DSPThread::run() {
     m_running = true;
 
     // Try to map PRU memory
-    mapPRUMemory();
+    // mapPRUMemory();
 
     while (m_running) {
         // Read samples
