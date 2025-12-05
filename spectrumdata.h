@@ -13,4 +13,6 @@ struct SpectrumData {
     uint32_t numBins;             // 512
 };
 
+Q_DECLARE_METATYPE(SpectrumData)
+
 #endif
