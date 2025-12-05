@@ -11,6 +11,13 @@ MainWindow::MainWindow(QWidget *parent)
     // Create plot
     m_plot = new QCustomPlot(this);
     layout->addWidget(m_plot);
+
+    // Create Reset button
+    m_resetButton = new QPushButton("Reset Display", this);
+    layout->addWidget(m_resetButton);
+    connect(m_resetButton, &QPushButton::clicked,
+            this, &MainWindow::onResetDisplayClicked);
+
     setCentralWidget(centralWidget);
 
     setupPlot();
@@ -70,4 +77,22 @@ void MainWindow::updateSpectrum(const SpectrumData &data) {
 
     m_plot->graph(0)->setData(freqs, mags);
     m_plot->replot();
+}
+
+void MainWindow::onResetDisplayClicked() {
+    // Stop DSP thread cleanly if it is running
+    if (m_dspThread) {
+        m_dspThread->stop();
+    }
+
+    // Clear plot data
+    if (m_plot && m_plot->graphCount() > 0) {
+        for (int i = 0; i < m_plot->graphCount(); ++i) {
+            m_plot->graph(i)->data()->clear();
+        }
+        m_plot->replot();
+    }
+
+    // Close the main window to which will exit the app
+    close();
 }
