@@ -205,32 +205,13 @@ int main() {
             printf("  Flag cleared, continuing...\n");
         }
 
-        // Busy-wait to maintain 48 kHz timing
-        // Calculate how long this sample took
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        long elapsed_ns = (now.tv_sec - conv_start.tv_sec) * 1000000000L +
-                         (now.tv_nsec - conv_start.tv_nsec);
-
-        // Target is 20833 ns per sample (48 kHz)
-        long target_ns = 20833;
-        long remaining_ns = target_ns - elapsed_ns;
-
-        // Busy-wait for remaining time (nanosleep too coarse)
-        if (remaining_ns > 0) {
-            struct timespec target_time;
-            target_time.tv_sec = conv_start.tv_sec;
-            target_time.tv_nsec = conv_start.tv_nsec + target_ns;
-            if (target_time.tv_nsec >= 1000000000L) {
-                target_time.tv_sec++;
-                target_time.tv_nsec -= 1000000000L;
-            }
-
-            // Busy-wait until target time
-            do {
-                clock_gettime(CLOCK_MONOTONIC, &now);
-            } while ((now.tv_sec < target_time.tv_sec) ||
-                    (now.tv_sec == target_time.tv_sec && now.tv_nsec < target_time.tv_nsec));
+        // Minimal timing delay - just a tight loop
+        // At this point we've spent ~1us on ADC conversion
+        // Need to wait ~19us more to hit 20.8us per sample
+        // Use a calibrated busy-wait loop
+        for (volatile int delay = 0; delay < 380; delay++) {
+            // Tight busy-wait loop - calibrated for ~19us on BBB
+            // Adjust this value if sampling rate is off
         }
     }
 
