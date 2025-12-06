@@ -37,21 +37,23 @@ void MainWindow::setupPlot() {
     // Configure X axis (Frequency)
     m_plot->xAxis->setLabel("Frequency (Hz)");
 
-    // Ignore DC (0 Hz): start just above bin 0, around 43 Hz, up to 20 kHz
-    m_plot->xAxis->setRange(43, 20000);
+    // Ignore DC (0 Hz): start just above bin 0, around 20 Hz, up to 20 kHz
+    m_plot->xAxis->setRange(20, 20000);
 
-    // Custom audio frequency ticks
-    QVector<double> ticks;
-    ticks << 63 << 125 << 250 << 500 << 1000 << 2000 << 4000 << 8000 << 16000;
+    // Use a text ticker to place ticks at standard audio band center frequencies
+    QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
+    textTicker->addTick(63,    "63");
+    textTicker->addTick(125,   "125");
+    textTicker->addTick(250,   "250");
+    textTicker->addTick(500,   "500");
+    textTicker->addTick(1000,  "1k");
+    textTicker->addTick(2000,  "2k");
+    textTicker->addTick(4000,  "4k");
+    textTicker->addTick(8000,  "8k");
+    textTicker->addTick(16000, "16k");
+    m_plot->xAxis->setTicker(textTicker);
 
-    QVector<QString> tickLabels;
-    tickLabels << "63" << "125" << "250" << "500"
-               << "1k" << "2k" << "4k" << "8k" << "16k";
-
-    m_plot->xAxis->setAutoTicks(false);
-    m_plot->xAxis->setAutoTickLabels(false);
-    m_plot->xAxis->setTickVector(ticks);
-    m_plot->xAxis->setTickVectorLabels(tickLabels);
+    // Keep a reasonable tick length
     m_plot->xAxis->setTickLength(5, 2);
 
     // Configure Y axis (Magnitude)
