@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QVBoxLayout>
+#include <QCoreApplication>
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
@@ -30,7 +31,6 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
-    m_dspThread->stop();
 }
 
 void MainWindow::setupPlot() {
@@ -80,11 +80,6 @@ void MainWindow::updateSpectrum(const SpectrumData &data) {
 }
 
 void MainWindow::onResetDisplayClicked() {
-    // Stop DSP thread cleanly if it is running
-    if (m_dspThread) {
-        m_dspThread->stop();
-    }
-
     // Clear plot data
     if (m_plot && m_plot->graphCount() > 0) {
         for (int i = 0; i < m_plot->graphCount(); ++i) {
@@ -93,6 +88,6 @@ void MainWindow::onResetDisplayClicked() {
         m_plot->replot();
     }
 
-    // Close the main window to which will exit the app
-    close();
+    // Quit the application 
+    QCoreApplication::quit();
 }
