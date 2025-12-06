@@ -39,7 +39,6 @@ void MainWindow::setupPlot() {
 
     // Use logarithmic scale for audio frequencies
     m_plot->xAxis->setScaleType(QCPAxis::stLogarithmic);
-    m_plot->xAxis->setScaleLogBase(10);
 
     // Ignore DC (0 Hz): start just above bin 0, around 20 Hz, up to 20 kHz
     m_plot->xAxis->setRange(20, 20000);
