@@ -12,6 +12,8 @@
 
 // ADC Register offsets
 #define CTRL         0x40
+#define STEPCONFIG1  0x64
+#define STEPDELAY1   0x68
 #define STEPENABLE   0x54
 #define FIFO0DATA    0x100
 #define FIFO0COUNT   0xE4
@@ -84,6 +86,10 @@ int main() {
     printf("Initializing ADC...\n");
     adc_mem[CTRL/4] = 0x07;  // Enable ADC
     usleep(10000);
+
+    // Configure Step 1 for AIN0 (one-shot mode, no averaging)
+    adc_mem[STEPCONFIG1/4] = 0x00000000;  // AIN0, no averaging, one-shot
+    adc_mem[STEPDELAY1/4] = 0x00000000;   // No delay
 
     *ready_flag = 0;  // Clear flag
 
