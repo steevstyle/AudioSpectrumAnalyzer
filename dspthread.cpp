@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <QDebug>
 
 #define PRU_SHARED_MEM 0x4A310000  // PRU shared memory address
 #define PRU_MEM_SIZE 0x3000        // 12KB
@@ -101,7 +102,6 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     }
 
     return samples;
-    */
 }
 
 void DSPThread::applyHannWindow(QVector<double> &samples) {
