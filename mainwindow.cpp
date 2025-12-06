@@ -41,7 +41,7 @@ void MainWindow::setupPlot() {
     m_plot->xAxis->setScaleType(QCPAxis::stLogarithmic);
 
     // Ignore DC (0 Hz): start just above bin 0, around 20 Hz, up to 20 kHz
-    m_plot->xAxis->setRange(20, 20000);
+    m_plot->xAxis->setRange(31.5, 20000);
 
     // Use a text ticker to place ticks at standard audio band center frequencies
     QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
