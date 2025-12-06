@@ -36,7 +36,23 @@ MainWindow::~MainWindow() {
 void MainWindow::setupPlot() {
     // Configure X axis (Frequency)
     m_plot->xAxis->setLabel("Frequency (Hz)");
-    m_plot->xAxis->setRange(0, 24000);
+
+    // Ignore DC (0 Hz): start just above bin 0, around 43 Hz, up to 20 kHz
+    m_plot->xAxis->setRange(43, 20000);
+
+    // Custom audio frequency ticks
+    QVector<double> ticks;
+    ticks << 63 << 125 << 250 << 500 << 1000 << 2000 << 4000 << 8000 << 16000;
+
+    QVector<QString> tickLabels;
+    tickLabels << "63" << "125" << "250" << "500"
+               << "1k" << "2k" << "4k" << "8k" << "16k";
+
+    m_plot->xAxis->setAutoTicks(false);
+    m_plot->xAxis->setAutoTickLabels(false);
+    m_plot->xAxis->setTickVector(ticks);
+    m_plot->xAxis->setTickVectorLabels(tickLabels);
+    m_plot->xAxis->setTickLength(5, 2);
 
     // Configure Y axis (Magnitude)
     m_plot->yAxis->setLabel("Magnitude (dB)");
