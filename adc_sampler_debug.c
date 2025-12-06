@@ -109,13 +109,11 @@ int main() {
         clock_gettime(CLOCK_MONOTONIC, &conv_start);
         adc_mem[STEPENABLE/4] = 0x02;
 
-        // Small delay for conversion (~15us)
-        usleep(15);
-
-        // Check if data ready (simple poll with timeout)
-        int timeout = 100;
+        // Busy-wait for conversion complete (no usleep - too slow!)
+        // ADC conversion takes ~15us, poll FIFO until data ready
+        int timeout = 10000;  // Increased timeout for busy-wait
         while (timeout-- > 0 && (adc_mem[FIFO0COUNT/4] == 0)) {
-            // Busy wait
+            // Busy wait - critical for timing!
         }
 
         if (timeout <= 0) {
@@ -201,8 +199,33 @@ int main() {
             printf("  Flag cleared, continuing...\n");
         }
 
-        // Sleep to approximate 48 kHz
-        nanosleep(&sleep_time, &remaining);
+        // Busy-wait to maintain 48 kHz timing
+        // Calculate how long this sample took
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        long elapsed_ns = (now.tv_sec - conv_start.tv_sec) * 1000000000L +
+                         (now.tv_nsec - conv_start.tv_nsec);
+
+        // Target is 20833 ns per sample (48 kHz)
+        long target_ns = 20833;
+        long remaining_ns = target_ns - elapsed_ns;
+
+        // Busy-wait for remaining time (nanosleep too coarse)
+        if (remaining_ns > 0) {
+            struct timespec target_time;
+            target_time.tv_sec = conv_start.tv_sec;
+            target_time.tv_nsec = conv_start.tv_nsec + target_ns;
+            if (target_time.tv_nsec >= 1000000000L) {
+                target_time.tv_sec++;
+                target_time.tv_nsec -= 1000000000L;
+            }
+
+            // Busy-wait until target time
+            do {
+                clock_gettime(CLOCK_MONOTONIC, &now);
+            } while ((now.tv_sec < target_time.tv_sec) ||
+                    (now.tv_sec == target_time.tv_sec && now.tv_nsec < target_time.tv_nsec));
+        }
     }
 
     printf("\n\nStopping...\n");
