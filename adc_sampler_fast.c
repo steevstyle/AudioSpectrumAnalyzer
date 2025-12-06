@@ -155,9 +155,9 @@ int main() {
             max_sample = 0;
         }
 
-        // Timing loop - calibrate this value
-        // Start with NO delay, measure actual rate, then add delay if too fast
-        for (volatile int d = 0; d < 200; d++) {
+        // Timing loop - calibrate this value to hit 48 kHz
+        // Adjust based on actual measured rate shown in output
+        for (volatile int d = 0; d < 550; d++) {
             // Busy wait
         }
     }
