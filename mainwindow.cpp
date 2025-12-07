@@ -26,11 +26,40 @@ MainWindow::MainWindow(QWidget *parent)
     // Create and start DSP thread
     m_dspThread = new DSPThread(this);
     connect(m_dspThread, &DSPThread::spectrumReady,
-            this, &MainWindow::updateSpectrum);
+            this, &MainWindow::cacheSpectrum, Qt::QueuedConnection);
+    // UI refresh timer (~30Hz)
+    m_uiTimer = new QTimer(this);
+    connect(m_uiTimer, &QTimer::timeout, this, &MainWindow::refreshPlot);
+    m_uiTimer->start(33);
     m_dspThread->start();
 }
 
 MainWindow::~MainWindow() {
+    if (m_dspThread) {
+        m_dspThread->stop();
+    }
+}
+
+void MainWindow::cacheSpectrum(const SpectrumData &data) {
+    QMutexLocker locker(&m_spectrumMutex);
+    m_cachedSpectrum = data;
+    m_hasCachedSpectrum = true;
+}
+
+void MainWindow::refreshPlot() {
+    if (!m_hasCachedSpectrum)
+        return;
+
+    SpectrumData localCopy;
+
+    { QMutexLocker locker(&m_spectrumMutex);
+      localCopy = m_cachedSpectrum;
+    }
+
+    m_plot->graph(0)->setData(localCopy.frequencies,
+                              localCopy.magnitudes);
+
+    m_plot->replot(QCustomPlot::rpQueuedReplot);
 }
 
 void MainWindow::setupPlot() {
@@ -85,6 +114,7 @@ void MainWindow::setupPlot() {
     m_plot->graph(0)->setPen(QPen(QColor(0, 255, 0), 2));  // Green, 2px
 }
 
+/*
 void MainWindow::updateSpectrum(const SpectrumData &data) {
     // Drop updates if we're still processing the last one
     static bool processing = false;
@@ -107,6 +137,7 @@ void MainWindow::updateSpectrum(const SpectrumData &data) {
 
     processing = false;
 }
+*/
 
 void MainWindow::onResetDisplayClicked() {
     // Clear plot data
