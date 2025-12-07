@@ -44,9 +44,10 @@ volatile register uint32_t __R31;
 // ---------------------------------------------------------------------------
 static inline void delay_cycles(uint32_t cycles)
 {
-    __asm__ __volatile__(
-        "1: SUB %0, %0, 1\n\t"
-        "   QBNE 1b, %0, 0\n\t"
+    __asm__ volatile(
+        "loop:\n"
+        " SUB %0, %0, 1\n"
+        " QBNE loop, %0, 0\n"
         : "+r" (cycles)
     );
 }
