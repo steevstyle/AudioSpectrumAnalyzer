@@ -32,11 +32,12 @@ volatile register uint32_t __R31;
 #define PRU_FREQ_HZ      200000000
 #define SAMPLE_RATE_HZ   48000
 // Total cycles per sample: 200000000 / 48000 = 4167
-// Overhead: ADC poll (~3000) + trigger/read/store (~40) + checks (~10) = ~3050
-// Remaining for delay: 4167 - 3050 = 1117 cycles
-// Inline asm loop: 2 cycles per iteration (SUB + QBNE)
-// Loop count: 1117 / 2 = 558
-#define SAMPLE_DELAY_CYCLES 558
+// Current: ~77 kHz, need to slow down by factor of 77/48 = 1.6x
+// Working backwards: 200000000 / 77000 ≈ 2597 cycles/sample currently
+// Need: 4167 cycles/sample
+// Additional delay needed: 4167 - 2597 = 1570 cycles
+// Current delay produces 2597, so current + 1570/2 = 558 + 785 = 1343
+#define SAMPLE_DELAY_CYCLES 1343
 
 // ---------------------------------------------------------------------------
 // Delay helper - external assembly function for deterministic timing
