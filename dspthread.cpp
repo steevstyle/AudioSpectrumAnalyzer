@@ -97,25 +97,29 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     // Get pointer to ready flag (at offset 0x1000)
     volatile uint8_t* ready_flag = (volatile uint8_t*)((char*)m_pruBuffer + 0x1000);
 
-    // Wait for new buffer to be ready (timeout after 100ms)
+    // Track which buffer we read last to detect new data
+    static uint8_t last_buffer_read = 0;
+
+    // Wait for flag to change (indicating new buffer ready)
     int wait_count = 0;
-    while (*ready_flag == 0 && wait_count < 1000) {
+    while (*ready_flag == last_buffer_read && wait_count < 1000) {
         usleep(100);  // Wait 100us between checks
         wait_count++;
     }
 
-    if (*ready_flag == 0) {
+    if (*ready_flag == last_buffer_read) {
         qDebug() << "WARNING: No new buffer ready after 100ms, using stale data";
     }
 
     uint8_t buffer_ready = *ready_flag;  // 1=A, 2=B
+    last_buffer_read = buffer_ready;  // Remember which buffer we just read
+
     volatile uint16_t* read_buffer = m_pruBuffer;  // Default to A
 
     if (buffer_ready == 2) {
         // Buffer B is ready (at offset BUFFER_SIZE)
         read_buffer = m_pruBuffer + 1024;
     }
-    // Removed per-buffer debug logging for performance
 
     // Read from the ready buffer and calculate mean for DC removal
     double sum = 0.0;
@@ -151,8 +155,8 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
         debug_counter = 0;
     }
 
-    // Clear the ready flag to signal we've read the buffer
-    *ready_flag = 0;
+    // Don't clear flag - PRU will overwrite with next buffer ID
+    // We track last_buffer_read instead to detect changes
 
     return samples;
 }
