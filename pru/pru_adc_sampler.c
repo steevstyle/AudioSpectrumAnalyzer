@@ -31,7 +31,10 @@ volatile register uint32_t __R31;
 // ---------------------------------------------------------------------------
 #define PRU_FREQ_HZ      200000000
 #define SAMPLE_RATE_HZ   48000
-#define SAMPLE_DELAY_CYCLES (PRU_FREQ_HZ / SAMPLE_RATE_HZ - 380)  // approx. 4167 cycles
+// Measured: loop overhead is ~10x, so divide target by 10
+// Target: 4167 cycles total, minus ~400 for ADC/operations = 3767
+// Actual loop count needed: 3767 / 10 ≈ 377
+#define SAMPLE_DELAY_CYCLES 377
 
 // ---------------------------------------------------------------------------
 // Delay helper
