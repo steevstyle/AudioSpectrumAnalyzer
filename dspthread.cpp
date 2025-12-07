@@ -136,7 +136,7 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
 
     // Calculate basic statistics for debugging
     uint16_t min_raw = 4095, max_raw = 0;
-    double sum = 0.0;
+    sum = 0.0;
     for (int i = 0; i < numSamples; i++) {
         uint16_t raw = read_buffer[i];
         if (raw < min_raw) min_raw = raw;
