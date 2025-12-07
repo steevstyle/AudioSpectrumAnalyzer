@@ -1,0 +1,97 @@
+******************************************************************************
+                     PRU Linker Unix v2.3.3                    
+******************************************************************************
+>> Linked Sat Dec  6 20:03:06 2025
+
+OUTPUT FILE NAME:   <pru_adc_sampler.out>
+ENTRY POINT SYMBOL: "_c_int00_noinit_noargs"  address: 000000e8
+
+
+MEMORY CONFIGURATION
+
+         name            origin    length      used     unused   attr    fill
+----------------------  --------  ---------  --------  --------  ----  --------
+PAGE 0:
+  PRU_IMEM              00000000   00002000  00000214  00001dec  RWIX
+
+PAGE 1:
+  PRU_DMEM              00000000   00002000  0000004c  00001fb4  RWIX
+
+
+SECTION ALLOCATION MAP
+
+ output                                  attributes/
+section   page    origin      length       input sections
+--------  ----  ----------  ----------   ----------------
+.text      0    00000000    00000114     
+                  00000000    000000b8     pru_adc_sampler.obj (.text:main)
+                  000000b8    00000030     pru_adc_sampler.obj (.text:delay_cycles)
+                  000000e8    0000001c     rtspruv3_le.lib : boot.c.obj (.text:_c_int00_noinit_noargs)
+                  00000104    00000008                     : exit.c.obj (.text:abort)
+                  0000010c    00000008                     : exit.c.obj (.text:loader_exit)
+
+.resource_table 
+*          1    00000000    0000004c     
+                  00000000    0000004c     pru_adc_sampler.obj (.resource_table:retain)
+
+.stack     0    00000114    00000100     UNINITIALIZED
+                  00000114    00000004     rtspruv3_le.lib : boot.c.obj (.stack)
+                  00000118    000000fc     --HOLE--
+
+MODULE SUMMARY
+
+       Module                code   ro data   rw data
+       ------                ----   -------   -------
+    <current directory>
+       pru_adc_sampler.obj   232    0         76     
+    +--+---------------------+------+---------+---------+
+       Total:                232    0         76     
+                                                     
+    /home/stopkins/ti-cgt-pru_2.3.3/lib/rtspruv3_le.lib
+       boot.c.obj            28     0         0      
+       exit.c.obj            16     0         0      
+    +--+---------------------+------+---------+---------+
+       Total:                44     0         0      
+                                                     
+       Stack:                0      0         256    
+    +--+---------------------+------+---------+---------+
+       Grand Total:          276    0         332    
+
+
+SEGMENT ATTRIBUTES
+
+    id tag      seg value
+    -- ---      --- -----
+     0 PHA_PAGE 2   1    
+
+
+GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name 
+
+page  address   name                  
+----  -------   ----                  
+0     0000010c  C$$EXIT               
+0     00000214  __TI_STACK_END        
+abs   00000100  __TI_STACK_SIZE       
+abs   ffffffff  __c_args__            
+0     000000e8  _c_int00_noinit_noargs
+0     00000114  _stack                
+0     00000104  abort                 
+0     00000000  main                  
+1     00000000  resource_table        
+
+
+GLOBAL SYMBOLS: SORTED BY Symbol Address 
+
+page  address   name                  
+----  -------   ----                  
+0     00000000  main                  
+0     000000e8  _c_int00_noinit_noargs
+0     00000104  abort                 
+0     0000010c  C$$EXIT               
+0     00000114  _stack                
+0     00000214  __TI_STACK_END        
+1     00000000  resource_table        
+abs   00000100  __TI_STACK_SIZE       
+abs   ffffffff  __c_args__            
+
+[9 symbols]
