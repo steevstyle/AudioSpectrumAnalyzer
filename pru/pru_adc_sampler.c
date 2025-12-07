@@ -15,6 +15,11 @@ volatile register uint32_t __R31;
 
 #define BUFFER_SIZE     1024
 
+// PRU cycle counter (IEP timer for precise timing)
+#define PRU_IEP_BASE    0x0002E000
+#define IEP_COUNT       (*(volatile uint32_t *)(PRU_IEP_BASE + 0x0C))
+#define IEP_CFG         (*(volatile uint32_t *)(PRU_IEP_BASE + 0x00))
+
 // ---------------------------------------------------------------------------
 // ADC Registers (AM335x TRM)
 // ---------------------------------------------------------------------------
@@ -54,6 +59,10 @@ void main(void)
     uint16_t sample_count = 0;
     uint8_t current_buffer = 1;  // 1=A, 2=B
 
+    // Initialize IEP timer for precise timing
+    IEP_CFG = 0x111;  // Enable IEP, no compensation, increment by 1
+    IEP_COUNT = 0;    // Reset counter
+
     // Initialize ADC
     ADC_CTRL = 0x07;           // Enable ADC module
     delay_cycles(10000);       // small stabilization delay
@@ -62,6 +71,8 @@ void main(void)
 
     // Clear buffer ready flag
     FLAGS_BASE[0] = 0;
+
+    uint32_t next_sample_time = IEP_COUNT + (PRU_FREQ_HZ / SAMPLE_RATE_HZ);
 
     while(1) {
         // Trigger step 1
@@ -92,8 +103,13 @@ void main(void)
             sample_count = 0;
         }
 
-        // Timing delay
-        delay_cycles(SAMPLE_DELAY_CYCLES);
+        // Wait until next sample time using IEP timer
+        while (IEP_COUNT < next_sample_time) {
+            // Busy wait with cycle-accurate timing
+        }
+
+        // Schedule next sample exactly 4167 cycles from last one
+        next_sample_time += (PRU_FREQ_HZ / SAMPLE_RATE_HZ);
     }
 }
 
