@@ -88,29 +88,48 @@ int main() {
 
     int snapshot_count = 0;
     uint8_t last_flag = *ready_flag;
+    struct timespec last_time, current_time;
+    int buffer_count = 0;
+
+    // Wait for first flag change
+    printf("Waiting for PRU to set ready flag...\n");
+    while (*ready_flag == 0 && keep_running) {
+        usleep(10000);
+    }
+    last_flag = *ready_flag;
+    clock_gettime(CLOCK_MONOTONIC, &last_time);
+    printf("PRU is running!\n\n");
 
     while (keep_running) {
         uint8_t flag = *ready_flag;
 
-        printf("=== Snapshot %d ===\n", ++snapshot_count);
-        printf("Ready Flag: %d ", flag);
-        if (flag == 0) printf("(none ready)\n");
-        else if (flag == 1) printf("(Buffer A ready)\n");
-        else if (flag == 2) printf("(Buffer B ready)\n");
-        else printf("(INVALID VALUE!)\n");
+        if (flag != 0 && flag != last_flag) {
+            // Flag changed - new buffer ready
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
 
-        if (flag != last_flag) {
-            printf("*** FLAG CHANGED: %d -> %d ***\n", last_flag, flag);
+            double elapsed = (current_time.tv_sec - last_time.tv_sec) +
+                           (current_time.tv_nsec - last_time.tv_nsec) / 1e9;
+            double sample_rate = BUFFER_SIZE / elapsed;
+
+            buffer_count++;
+
+            printf("=== Buffer %d ===\n", buffer_count);
+            printf("Ready Flag: %d -> %d\n", last_flag, flag);
+            printf("Time: %.6f sec (%.1f Hz sample rate)\n", elapsed, sample_rate);
+            printf("\n");
+
+            if (flag == 1) {
+                analyze_buffer(buffer_a, "Buffer A");
+            } else if (flag == 2) {
+                analyze_buffer(buffer_b, "Buffer B");
+            }
+            printf("\n");
+
             last_flag = flag;
+            last_time = current_time;
         }
 
-        printf("\n");
-        analyze_buffer(buffer_a, "Buffer A");
-        printf("\n");
-        analyze_buffer(buffer_b, "Buffer B");
-        printf("\n");
-
-        sleep(1);  // Update every second
+        usleep(1000);  // Check every 1ms
     }
 
     printf("\nCleaning up...\n");
