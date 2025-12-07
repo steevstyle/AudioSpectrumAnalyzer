@@ -114,10 +114,8 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     if (buffer_ready == 2) {
         // Buffer B is ready (at offset BUFFER_SIZE)
         read_buffer = m_pruBuffer + 1024;
-        qDebug() << "Reading from buffer B";
-    } else if (buffer_ready == 1) {
-        qDebug() << "Reading from buffer A";
     }
+    // Removed per-buffer debug logging for performance
 
     // Read from the ready buffer and calculate mean for DC removal
     double sum = 0.0;
@@ -134,20 +132,24 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
         samples[i] -= dc_offset;
     }
 
-    // Calculate basic statistics for debugging
-    uint16_t min_raw = 4095, max_raw = 0;
-    sum = 0.0;
-    for (int i = 0; i < numSamples; i++) {
-        uint16_t raw = read_buffer[i];
-        if (raw < min_raw) min_raw = raw;
-        if (raw > max_raw) max_raw = raw;
-        sum += raw;
-    }
-    double avg_raw = sum / numSamples;
+    // Calculate basic statistics for debugging (print occasionally to reduce overhead)
+    static int debug_counter = 0;
+    if (++debug_counter >= 50) {  // Print every 50 buffers (~1 second at 48 kHz)
+        uint16_t min_raw = 4095, max_raw = 0;
+        sum = 0.0;
+        for (int i = 0; i < numSamples; i++) {
+            uint16_t raw = read_buffer[i];
+            if (raw < min_raw) min_raw = raw;
+            if (raw > max_raw) max_raw = raw;
+            sum += raw;
+        }
+        double avg_raw = sum / numSamples;
 
-    qDebug() << "Buffer stats - Min:" << min_raw << "(" << (min_raw * 1.8 / 4095.0) << "V)"
-             << "Max:" << max_raw << "(" << (max_raw * 1.8 / 4095.0) << "V)"
-             << "Avg:" << avg_raw << "(" << (avg_raw * 1.8 / 4095.0) << "V)";
+        qDebug() << "Buffer stats - Min:" << min_raw << "(" << (min_raw * 1.8 / 4095.0) << "V)"
+                 << "Max:" << max_raw << "(" << (max_raw * 1.8 / 4095.0) << "V)"
+                 << "Avg:" << avg_raw << "(" << (avg_raw * 1.8 / 4095.0) << "V)";
+        debug_counter = 0;
+    }
 
     // Clear the ready flag to signal we've read the buffer
     *ready_flag = 0;
