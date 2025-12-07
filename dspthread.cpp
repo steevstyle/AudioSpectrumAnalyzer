@@ -121,6 +121,17 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     uint8_t buffer_ready = *ready_flag;  // 1=A, 2=B
     last_buffer_read = buffer_ready;  // Remember which buffer we just read
 
+    // Skip buffers to reduce CPU load - only process every 2nd buffer
+    // This gives ~50 Hz update rate instead of ~90 Hz
+    static int skip_counter = 0;
+    if (++skip_counter < 2) {
+        // Skip this buffer, return last processed data
+        // (This is a quick hack - ideally we'd cache the last result)
+        // For now, just wait for next buffer
+        return readPRUSamples(numSamples);
+    }
+    skip_counter = 0;
+
     volatile uint16_t* read_buffer = m_pruBuffer;  // Default to A
 
     if (buffer_ready == 2) {
