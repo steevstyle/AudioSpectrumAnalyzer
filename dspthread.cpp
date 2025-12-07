@@ -119,11 +119,19 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
         qDebug() << "Reading from buffer A";
     }
 
-    // Read from the ready buffer
+    // Read from the ready buffer and calculate mean for DC removal
+    double sum = 0.0;
     for (int i = 0; i < numSamples; i++) {
         uint16_t raw = read_buffer[i];
         double voltage = (raw / 4095.0) * 1.8;  // Convert to voltage
         samples.append(voltage);
+        sum += voltage;
+    }
+
+    // Remove DC offset (critical for clean FFT)
+    double dc_offset = sum / numSamples;
+    for (int i = 0; i < numSamples; i++) {
+        samples[i] -= dc_offset;
     }
 
     // Calculate basic statistics for debugging
@@ -157,7 +165,6 @@ void DSPThread::applyHannWindow(QVector<double> &samples) {
 
 void DSPThread::computeFFT(const QVector<double> &samples,
                            QVector<double> &magnitudes) {
-    double mag, db;
     // Copy samples to FFT input buffer
     for (int i = 0; i < FFT_SIZE; i++) {
         m_fftInput[i] = samples[i];
@@ -169,24 +176,38 @@ void DSPThread::computeFFT(const QVector<double> &samples,
     // Compute magnitudes (convert to dB)
     magnitudes.clear();
 
-    // DC component
-    //double mag = fabs(m_fftOutput[0]);
-    //double db = 20.0 * log10(mag + 1e-10);
-    //magnitudes.append(qMax(db, -80.0));
+    // Normalization factors:
+    // - FFT_SIZE: FFTW r2r doesn't normalize
+    // - 2.0: Convert single-sided spectrum to power
+    // - Hann window coherent gain: 0.5
+    // Reference: Full-scale sine wave (0.9V p-p = 0.45V amplitude)
+    const double FULL_SCALE_VOLTAGE = 0.9;  // Adjust based on your signal levels
+    const double WINDOW_GAIN = 0.5;  // Hann window coherent gain
+    const double NORMALIZATION = FFT_SIZE * WINDOW_GAIN;
+
+    // DC component (skip it - usually just noise)
+    // magnitudes.append(-80.0);
 
     // Other bins (half-complex format)
     for (int i = 1; i < FFT_SIZE / 2; i++) {
         double real = m_fftOutput[i];
         double imag = m_fftOutput[FFT_SIZE - i];
-        mag = sqrt(real * real + imag * imag);
-        db = 20.0 * log10(mag + 1e-10);
+        double mag = sqrt(real * real + imag * imag);
+
+        // Normalize and convert to voltage amplitude
+        double voltage_amplitude = (mag / NORMALIZATION) * 2.0;
+
+        // Convert to dB relative to full scale
+        // dBFS = 20 * log10(amplitude / reference)
+        double db = 20.0 * log10(voltage_amplitude / FULL_SCALE_VOLTAGE + 1e-10);
         magnitudes.append(qMax(db, -80.0));
     }
 
     // Nyquist component
-    mag = fabs(m_fftOutput[FFT_SIZE / 2]);
-    db = 20.0 * log10(mag + 1e-10);
-    magnitudes.append(qMax(db, -80.0));
+    double mag_nyq = fabs(m_fftOutput[FFT_SIZE / 2]);
+    double voltage_amplitude_nyq = (mag_nyq / NORMALIZATION);
+    double db_nyq = 20.0 * log10(voltage_amplitude_nyq / FULL_SCALE_VOLTAGE + 1e-10);
+    magnitudes.append(qMax(db_nyq, -80.0));
 }
 
 void DSPThread::run() {
