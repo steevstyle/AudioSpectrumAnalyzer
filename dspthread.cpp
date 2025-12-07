@@ -94,12 +94,55 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
         return samples;
     }
 
-    // read from shared memory written to by adc_sampler
+    // Get pointer to ready flag (at offset 0x1000)
+    volatile uint8_t* ready_flag = (volatile uint8_t*)((char*)m_pruBuffer + 0x1000);
+
+    // Wait for new buffer to be ready (timeout after 100ms)
+    int wait_count = 0;
+    while (*ready_flag == 0 && wait_count < 1000) {
+        usleep(100);  // Wait 100us between checks
+        wait_count++;
+    }
+
+    if (*ready_flag == 0) {
+        qDebug() << "WARNING: No new buffer ready after 100ms, using stale data";
+    }
+
+    uint8_t buffer_ready = *ready_flag;  // 1=A, 2=B
+    volatile uint16_t* read_buffer = m_pruBuffer;  // Default to A
+
+    if (buffer_ready == 2) {
+        // Buffer B is ready (at offset BUFFER_SIZE)
+        read_buffer = m_pruBuffer + 1024;
+        qDebug() << "Reading from buffer B";
+    } else if (buffer_ready == 1) {
+        qDebug() << "Reading from buffer A";
+    }
+
+    // Read from the ready buffer
     for (int i = 0; i < numSamples; i++) {
-        uint16_t raw = m_pruBuffer[i];
+        uint16_t raw = read_buffer[i];
         double voltage = (raw / 4095.0) * 1.8;  // Convert to voltage
         samples.append(voltage);
     }
+
+    // Calculate basic statistics for debugging
+    uint16_t min_raw = 4095, max_raw = 0;
+    double sum = 0.0;
+    for (int i = 0; i < numSamples; i++) {
+        uint16_t raw = read_buffer[i];
+        if (raw < min_raw) min_raw = raw;
+        if (raw > max_raw) max_raw = raw;
+        sum += raw;
+    }
+    double avg_raw = sum / numSamples;
+
+    qDebug() << "Buffer stats - Min:" << min_raw << "(" << (min_raw * 1.8 / 4095.0) << "V)"
+             << "Max:" << max_raw << "(" << (max_raw * 1.8 / 4095.0) << "V)"
+             << "Avg:" << avg_raw << "(" << (avg_raw * 1.8 / 4095.0) << "V)";
+
+    // Clear the ready flag to signal we've read the buffer
+    *ready_flag = 0;
 
     return samples;
 }
