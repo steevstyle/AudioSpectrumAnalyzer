@@ -39,18 +39,10 @@ volatile register uint32_t __R31;
 #define SAMPLE_DELAY_CYCLES 1994
 
 // ---------------------------------------------------------------------------
-// Delay helper - inline assembly for deterministic timing
-// Each loop iteration = 2 cycles (SUB + QBNE)
+// Delay helper - external assembly function for deterministic timing
+// Implemented in delay.asm: 2 cycles per iteration (SUB + QBNE)
 // ---------------------------------------------------------------------------
-static inline void delay_cycles(uint32_t cycles)
-{
-    __asm__ volatile(
-        "loop:\n"
-        " SUB %0, %0, 1\n"
-        " QBNE loop, %0, 0\n"
-        : "+r" (cycles)
-    );
-}
+extern void delay_cycles(uint32_t cycles);
 
 // ---------------------------------------------------------------------------
 // Main
