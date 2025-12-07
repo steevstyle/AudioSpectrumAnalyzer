@@ -245,8 +245,9 @@ void DSPThread::run() {
         // Emit data
         emit spectrumReady(data);
 
-        // ~30 Hz update rate
-        usleep(33333);
+        // No fixed delay - pace based on PRU buffer rate
+        // At 48 kHz, buffers arrive every ~21ms naturally
+        // This gives ~47 Hz update rate (smooth and responsive)
     }
 }
 
