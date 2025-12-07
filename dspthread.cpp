@@ -102,13 +102,19 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
 
     // Wait for flag to change (indicating new buffer ready)
     int wait_count = 0;
+    uint8_t current_flag = *ready_flag;
+
+    qDebug() << "Waiting for buffer change. Last read:" << last_buffer_read << "Current flag:" << current_flag;
+
     while (*ready_flag == last_buffer_read && wait_count < 1000) {
         usleep(100);  // Wait 100us between checks
         wait_count++;
     }
 
     if (*ready_flag == last_buffer_read) {
-        qDebug() << "WARNING: No new buffer ready after 100ms, using stale data";
+        qDebug() << "WARNING: No new buffer ready after 100ms, flag stuck at" << *ready_flag;
+    } else {
+        qDebug() << "Got new buffer! Flag changed to:" << *ready_flag << "after" << (wait_count * 100) << "us";
     }
 
     uint8_t buffer_ready = *ready_flag;  // 1=A, 2=B
