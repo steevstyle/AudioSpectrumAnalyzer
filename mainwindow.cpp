@@ -86,8 +86,14 @@ void MainWindow::setupPlot() {
 }
 
 void MainWindow::updateSpectrum(const SpectrumData &data) {
-    // Update plot
+    // Drop updates if we're still processing the last one
+    static bool processing = false;
+    if (processing) {
+        return;  // Skip this update, GUI is busy
+    }
+    processing = true;
 
+    // Update plot
     QVector<double> freqs = data.frequencies;
     QVector<double> mags  = data.magnitudes;
 
@@ -98,6 +104,8 @@ void MainWindow::updateSpectrum(const SpectrumData &data) {
 
     m_plot->graph(0)->setData(freqs, mags);
     m_plot->replot();
+
+    processing = false;
 }
 
 void MainWindow::onResetDisplayClicked() {
