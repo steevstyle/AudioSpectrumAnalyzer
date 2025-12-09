@@ -258,9 +258,14 @@ void MainWindow::setupSpectrogram() {
     // Set up data dimensions (time columns × frequency bins)
     m_colorMap->data()->setSize(MAX_SPECTROGRAM_ROWS, 512);
 
-    // Set key/value ranges to match cell indices (0-199 for time, 0-511 for frequency bins)
+    // Set key range for time (0-199 columns)
     m_colorMap->data()->setKeyRange(QCPRange(0, MAX_SPECTROGRAM_ROWS - 1));
-    m_colorMap->data()->setValueRange(QCPRange(0, 511));
+
+    // Set value range to actual frequency values (Hz) for logarithmic Y-axis
+    // Bin 0 = 0 Hz (DC, skip), Bin 1 = 46.875 Hz, Bin 511 = ~23.9 kHz
+    double minFreq = 1.0 * 48000.0 / 1024.0;  // Bin 1: ~46.875 Hz
+    double maxFreq = 511.0 * 48000.0 / 1024.0;  // Bin 511: ~23906 Hz
+    m_colorMap->data()->setValueRange(QCPRange(minFreq, maxFreq));
 
     // Set up color gradient (black -> blue -> green -> yellow -> red)
     QCPColorGradient gradient;
@@ -319,15 +324,19 @@ void MainWindow::refreshSpectrogram() {
     // Scroll existing data left by one column (past moves left)
     for (int col = 0; col < MAX_SPECTROGRAM_ROWS - 1; ++col) {
         for (int row = 0; row < 512; ++row) {
-            double value = m_colorMap->data()->cell(col + 1, row);
-            m_colorMap->data()->setCell(col, row, value);
+            // Map row index to frequency
+            double freq = (row + 1) * 48000.0 / 1024.0;
+            double value = m_colorMap->data()->data(col + 1, freq);
+            m_colorMap->data()->setData(col, freq, value);
         }
     }
 
     // Add new spectrum data to rightmost column (present on the right)
     int rightCol = MAX_SPECTROGRAM_ROWS - 1;
     for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
-        m_colorMap->data()->setCell(rightCol, i, localCopy.magnitudes[i]);
+        // Map bin index to frequency (bin 0 is skipped in magnitudes array)
+        double freq = (i + 1) * 48000.0 / 1024.0;  // i=0 -> bin 1 -> 46.875 Hz
+        m_colorMap->data()->setData(rightCol, freq, localCopy.magnitudes[i]);
     }
 
     m_spectrogramRows = qMin(m_spectrogramRows + 1, MAX_SPECTROGRAM_ROWS);
@@ -360,9 +369,9 @@ void MainWindow::onToggleDisplayMode() {
         m_plot->xAxis->setScaleType(QCPAxis::stLinear);  // Linear for time
         m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS - 1);
 
-        m_plot->yAxis->setLabel("Frequency Bin");
-        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear bin index
-        m_plot->yAxis->setRange(0, 511);
+        m_plot->yAxis->setLabel("Frequency (Hz)");
+        m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale like FFT mode
+        m_plot->yAxis->setRange(31.5, 20000);
     } else {
         // Switch to spectrum
         m_plot->graph(0)->setVisible(true);
