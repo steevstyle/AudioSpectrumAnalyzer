@@ -36,6 +36,7 @@ private:
 
     QCustomPlot *m_plot;
     QCPColorMap *m_colorMap;
+    QCPColorScale *m_colorScale;
     DSPThread *m_dspThread;
     QPushButton *m_resetButton;
     QPushButton *m_toggleButton;
