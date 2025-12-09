@@ -415,23 +415,22 @@ void MainWindow::onToggleDisplayMode() {
         m_plot->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
 
         m_plot->yAxis->setLabel("Frequency (Hz)");
-        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear row indices
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear bin indices
 
-        // Y-axis shows logarithmically-mapped row indices (0-511)
-        m_plot->yAxis->setRange(0, 511);
+        // Y-axis shows bin indices but limited to useful audio range
+        // 63 Hz = bin ~0.34, 16 kHz = bin ~340
+        double minBin = 63.0 / 46.875 - 1;     // ~0.34
+        double maxBin = 16000.0 / 46.875 - 1;  // ~340
+        m_plot->yAxis->setRange(minBin, maxBin);
 
-        // Create custom ticker with logarithmic frequency labels
+        // Create custom ticker with frequency labels at key positions
         QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
-        // Map each frequency to its logarithmic row position
-        textTicker->addTick(binToLogRow(63.0 / 46.875 - 1),    "63");
-        textTicker->addTick(binToLogRow(125.0 / 46.875 - 1),   "125");
-        textTicker->addTick(binToLogRow(250.0 / 46.875 - 1),   "250");
-        textTicker->addTick(binToLogRow(500.0 / 46.875 - 1),   "500");
-        textTicker->addTick(binToLogRow(1000.0 / 46.875 - 1),  "1k");
-        textTicker->addTick(binToLogRow(2000.0 / 46.875 - 1),  "2k");
-        textTicker->addTick(binToLogRow(4000.0 / 46.875 - 1),  "4k");
-        textTicker->addTick(binToLogRow(8000.0 / 46.875 - 1),  "8k");
-        textTicker->addTick(binToLogRow(16000.0 / 46.875 - 1), "16k");
+        //textTicker->addTick(63.0 / 46.875 - 1,    "63");
+        textTicker->addTick(125.0 / 46.875 - 1,   "125");
+        textTicker->addTick(1000.0 / 46.875 - 1,  "1k");
+        textTicker->addTick(4000.0 / 46.875 - 1,  "4k");
+        textTicker->addTick(8000.0 / 46.875 - 1,  "8k");
+        textTicker->addTick(16000.0 / 46.875 - 1, "16k");
         m_plot->yAxis->setTicker(textTicker);
     } else {
         // Clear the FFT graph data before switching
@@ -444,14 +443,32 @@ void MainWindow::onToggleDisplayMode() {
         m_toggleButton->setText("Spec");
         m_smoothingSlider->setEnabled(true);
 
-        // Restore axes for spectrum
+        // Restore X-axis for spectrum
         m_plot->xAxis->setLabel("Frequency (Hz)");
         m_plot->xAxis->setScaleType(QCPAxis::stLogarithmic);
         m_plot->xAxis->setRange(31.5, 20000);
 
+        // Restore X-axis ticker (from setupPlot)
+        QSharedPointer<QCPAxisTickerText> xTextTicker(new QCPAxisTickerText);
+        xTextTicker->addTick(63,    "63");
+        xTextTicker->addTick(125,   "125");
+        xTextTicker->addTick(250,   "250");
+        xTextTicker->addTick(500,   "500");
+        xTextTicker->addTick(1000,  "1k");
+        xTextTicker->addTick(2000,  "2k");
+        xTextTicker->addTick(4000,  "4k");
+        xTextTicker->addTick(8000,  "8k");
+        xTextTicker->addTick(16000, "16k");
+        m_plot->xAxis->setTicker(xTextTicker);
+        m_plot->xAxis->setTickLength(5, 2);
+
+        // Restore Y-axis for spectrum
         m_plot->yAxis->setLabel("Magnitude (dB)");
         m_plot->yAxis->setScaleType(QCPAxis::stLinear);
         m_plot->yAxis->setRange(-80, 0);
+
+        // Restore Y-axis ticker to default
+        m_plot->yAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
 
         // Remove color scale from layout when exiting spectrogram mode
         m_plot->plotLayout()->take(m_colorScale);
