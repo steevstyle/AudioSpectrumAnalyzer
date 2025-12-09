@@ -261,25 +261,14 @@ void MainWindow::setupSpectrogram() {
     // Set key range for time (0-199 columns)
     m_colorMap->data()->setKeyRange(QCPRange(0, MAX_SPECTROGRAM_ROWS - 1));
 
-    // Set value range to actual frequency values (Hz) for logarithmic Y-axis
-    // Bin 0 = 0 Hz (DC, skip), Bin 1 = 46.875 Hz, Bin 511 = ~23.9 kHz
-    double minFreq = 1.0 * 48000.0 / 1024.0;  // Bin 1: ~46.875 Hz
-    double maxFreq = 511.0 * 48000.0 / 1024.0;  // Bin 511: ~23906 Hz
-    m_colorMap->data()->setValueRange(QCPRange(minFreq, maxFreq));
+    // Set value range using bin indices (0-511)
+    // We'll map this to frequency values via the axis scale
+    m_colorMap->data()->setValueRange(QCPRange(0, 511));
 
-    // Set up color gradient optimized for typical audio spectrum range
-    // Most audio signals will be between -70 and -40 dB
-    QCPColorGradient gradient;
-    gradient.setColorStopAt(0.0, QColor(0, 0, 50));      // Very dark blue for -80 dB
-    gradient.setColorStopAt(0.2, QColor(0, 0, 200));     // Blue for -72 dB
-    gradient.setColorStopAt(0.4, QColor(0, 200, 200));   // Cyan for -64 dB
-    gradient.setColorStopAt(0.6, QColor(0, 255, 0));     // Green for -56 dB
-    gradient.setColorStopAt(0.8, QColor(255, 255, 0));   // Yellow for -48 dB
-    gradient.setColorStopAt(1.0, QColor(255, 0, 0));     // Red for -40 dB and above
-    m_colorMap->setGradient(gradient);
+    // Use built-in colormap for better color distribution
+    m_colorMap->setGradient(QCPColorGradient::gpJet);  // Rainbow: blue -> cyan -> green -> yellow -> red
 
-    // Set data range to focus on typical audio spectrum range
-    // This makes colors more visible for normal signal levels
+    // Set data range to match typical spectrum values (-80 to -40 dB)
     m_colorMap->setDataRange(QCPRange(-80, -40));
 
     // Enable interpolation for smoother display
@@ -327,19 +316,17 @@ void MainWindow::refreshSpectrogram() {
     // Scroll existing data left by one column (past moves left)
     for (int col = 0; col < MAX_SPECTROGRAM_ROWS - 1; ++col) {
         for (int row = 0; row < 512; ++row) {
-            // Map row index to frequency
-            double freq = (row + 1) * 48000.0 / 1024.0;
-            double value = m_colorMap->data()->data(col + 1, freq);
-            m_colorMap->data()->setData(col, freq, value);
+            double value = m_colorMap->data()->cell(col + 1, row);
+            m_colorMap->data()->setCell(col, row, value);
         }
     }
 
     // Add new spectrum data to rightmost column (present on the right)
     int rightCol = MAX_SPECTROGRAM_ROWS - 1;
     for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
-        // Map bin index to frequency (bin 0 is skipped in magnitudes array)
-        double freq = (i + 1) * 48000.0 / 1024.0;  // i=0 -> bin 1 -> 46.875 Hz
-        m_colorMap->data()->setData(rightCol, freq, localCopy.magnitudes[i]);
+        // i corresponds to bin (i+1) since magnitudes skips DC
+        // Store directly at row index i
+        m_colorMap->data()->setCell(rightCol, i, localCopy.magnitudes[i]);
     }
 
     m_spectrogramRows = qMin(m_spectrogramRows + 1, MAX_SPECTROGRAM_ROWS);
@@ -351,6 +338,14 @@ void MainWindow::onToggleDisplayMode() {
     m_spectrogramMode = !m_spectrogramMode;
 
     if (m_spectrogramMode) {
+        // Clear the spectrogram data before switching
+        for (int col = 0; col < MAX_SPECTROGRAM_ROWS; ++col) {
+            for (int row = 0; row < 512; ++row) {
+                m_colorMap->data()->setCell(col, row, -80.0);
+            }
+        }
+        m_spectrogramRows = 0;
+
         // Add color scale to layout when entering spectrogram mode
         m_plot->plotLayout()->addElement(0, 1, m_colorScale);
         m_plot->plotLayout()->setColumnStretchFactor(0, 0.8);
@@ -363,9 +358,10 @@ void MainWindow::onToggleDisplayMode() {
         m_toggleButton->setText("FFT");
         m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
 
-        // CRITICAL: Set data range to -80 to -40 dB (optimized for typical audio)
-        m_colorMap->setDataRange(QCPRange(-80, -40));
-        m_colorScale->setDataRange(QCPRange(-80, -40));
+        // CRITICAL: Set data range to -70 to -50 dB (optimized for typical audio)
+        // Your signals are around -55 to -67 dB, so this centers them in the gradient
+        m_colorMap->setDataRange(QCPRange(-70, -50));
+        m_colorScale->setDataRange(QCPRange(-70, -50));
 
         // Update axes for spectrogram
         m_plot->xAxis->setLabel("Time (updates)");
@@ -373,26 +369,32 @@ void MainWindow::onToggleDisplayMode() {
         m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS - 1);
 
         m_plot->yAxis->setLabel("Frequency (Hz)");
-        m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale like FFT mode
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear for bin indices
 
-        // Match the frequency range from FFT mode
-        double minFreq = 46.875;  // First bin (bin 1)
-        double maxFreq = 24000.0;  // Nyquist frequency
-        m_plot->yAxis->setRange(minFreq, maxFreq);
+        // Y-axis shows bin indices (0-511), but we label them as frequencies
+        // Bin to frequency: freq = bin * (48000 / 1024) = bin * 46.875 Hz
+        // For 1 kHz: bin = 1000 / 46.875 = 21.33
 
-        // Use same ticker as FFT mode for consistency
+        // Set range to bin indices
+        m_plot->yAxis->setRange(0, 511);  // Bin indices
+
+        // Create custom ticker with bin positions mapped to frequency labels
         QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
-        textTicker->addTick(63,    "63");
-        textTicker->addTick(125,   "125");
-        textTicker->addTick(250,   "250");
-        textTicker->addTick(500,   "500");
-        textTicker->addTick(1000,  "1k");
-        textTicker->addTick(2000,  "2k");
-        textTicker->addTick(4000,  "4k");
-        textTicker->addTick(8000,  "8k");
-        textTicker->addTick(16000, "16k");
+        // Convert frequencies to bin indices for tick positions
+        textTicker->addTick(63 * 1024.0 / 48000.0,    "63");     // ~1.35
+        textTicker->addTick(125 * 1024.0 / 48000.0,   "125");    // ~2.67
+        textTicker->addTick(250 * 1024.0 / 48000.0,   "250");    // ~5.33
+        textTicker->addTick(500 * 1024.0 / 48000.0,   "500");    // ~10.67
+        textTicker->addTick(1000 * 1024.0 / 48000.0,  "1k");     // ~21.33
+        textTicker->addTick(2000 * 1024.0 / 48000.0,  "2k");     // ~42.67
+        textTicker->addTick(4000 * 1024.0 / 48000.0,  "4k");     // ~85.33
+        textTicker->addTick(8000 * 1024.0 / 48000.0,  "8k");     // ~170.67
+        textTicker->addTick(16000 * 1024.0 / 48000.0, "16k");    // ~341.33
         m_plot->yAxis->setTicker(textTicker);
     } else {
+        // Clear the FFT graph data before switching
+        m_plot->graph(0)->data()->clear();
+
         // Switch to spectrum
         m_plot->graph(0)->setVisible(true);
         m_colorMap->setVisible(false);
