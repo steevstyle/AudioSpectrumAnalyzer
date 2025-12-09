@@ -3,6 +3,7 @@
 #include <QHBoxLayout>
 #include <QCoreApplication>
 #include <QTime>
+#include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
@@ -330,15 +331,23 @@ void MainWindow::refreshSpectrogram() {
       localCopy = m_cachedSpectrum;
     }
 
-    // Debug: Check actual update rate
+    // Debug: Check actual update rate and data range
     static QTime lastUpdate;
     static int updateCount = 0;
-    if (updateCount++ < 20) {
+    if (updateCount++ < 5) {
         if (lastUpdate.isValid()) {
             int elapsed = lastUpdate.msecsTo(QTime::currentTime());
             qDebug() << "Spectrogram refresh interval:" << elapsed << "ms";
         }
         lastUpdate = QTime::currentTime();
+
+        // Check magnitude range
+        if (!localCopy.magnitudes.isEmpty()) {
+            double minMag = *std::min_element(localCopy.magnitudes.begin(), localCopy.magnitudes.end());
+            double maxMag = *std::max_element(localCopy.magnitudes.begin(), localCopy.magnitudes.end());
+            qDebug() << "  Magnitude range:" << minMag << "to" << maxMag << "dB";
+            qDebug() << "  ColorMap data range:" << m_colorMap->dataRange();
+        }
     }
 
     // Use circular buffer - no scrolling needed!
@@ -350,10 +359,10 @@ void MainWindow::refreshSpectrogram() {
         m_colorMap->data()->setCell(writeCol, row, -80.0);
     }
 
-    // Write new spectrum data, mapping bins logarithmically to rows
+    // Write new spectrum data directly to rows (bin index = row index)
+    // No logarithmic mapping - just linear bin-to-row
     for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
-        int logRow = binToLogRow(i);
-        m_colorMap->data()->setCell(writeCol, logRow, localCopy.magnitudes[i]);
+        m_colorMap->data()->setCell(writeCol, i, localCopy.magnitudes[i]);
     }
 
     // Advance write position (circular)
