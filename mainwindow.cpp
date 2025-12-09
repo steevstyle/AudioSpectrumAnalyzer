@@ -42,8 +42,16 @@ MainWindow::~MainWindow() {
 
 void MainWindow::cacheSpectrum(const SpectrumData &data) {
     QMutexLocker locker(&m_spectrumMutex);
-    m_cachedSpectrum = data;
-    m_hasCachedSpectrum = true;
+    if (!m_hasCachedSpectrum) {    
+        m_cachedSpectrum = data;
+        m_hasCachedSpectrum = true;
+    } else {
+        // Exponential averaging of current and previous spectra
+        const double alpha = 0.85;
+
+        for (int i = 0; i < data.magnitudes.size(); i++) {
+            m_cachedSpectrum.magnitudes[i] = alpha * m_cachedSpectrum.magnitudes[i] + (1.0 - alpha) * data.magnitudes[i];
+        }
 }
 
 void MainWindow::refreshPlot() {
