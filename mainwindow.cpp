@@ -351,6 +351,10 @@ void MainWindow::onToggleDisplayMode() {
         m_toggleButton->setText("FFT");
         m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
 
+        // CRITICAL: Set data range to -80 to 0 dB
+        m_colorMap->setDataRange(QCPRange(-80, 0));
+        m_colorScale->setDataRange(QCPRange(-80, 0));
+
         // Update axes for spectrogram
         m_plot->xAxis->setLabel("Time (updates)");
         m_plot->xAxis->setScaleType(QCPAxis::stLinear);  // Linear for time
