@@ -274,6 +274,9 @@ void MainWindow::setupSpectrogram() {
     // Set data range (-80 to 0 dB)
     m_colorMap->setDataRange(QCPRange(-80, 0));
 
+    // Enable interpolation for smoother display
+    m_colorMap->setInterpolate(true);
+
     // Create color scale but DON'T add it to layout yet
     m_colorScale = new QCPColorScale(m_plot);
     m_colorScale->setType(QCPAxis::atRight);
@@ -303,12 +306,13 @@ void MainWindow::refreshSpectrogram() {
       localCopy = m_cachedSpectrum;
     }
 
-    // Debug: print first time to verify we're getting data
+    // Debug: print to verify we're getting data and writing it
     static int debugCount = 0;
-    if (debugCount++ < 5) {
+    if (debugCount++ < 10) {
         qDebug() << "Spectrogram update" << debugCount << "- magnitudes size:" << localCopy.magnitudes.size();
         if (!localCopy.magnitudes.isEmpty()) {
             qDebug() << "  Sample values:" << localCopy.magnitudes[0] << localCopy.magnitudes[100] << localCopy.magnitudes[200];
+            qDebug() << "  ColorMap visible:" << m_colorMap->visible() << "Range:" << m_colorMap->dataRange();
         }
     }
 
