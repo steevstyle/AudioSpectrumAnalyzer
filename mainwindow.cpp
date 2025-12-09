@@ -267,17 +267,20 @@ void MainWindow::setupSpectrogram() {
     double maxFreq = 511.0 * 48000.0 / 1024.0;  // Bin 511: ~23906 Hz
     m_colorMap->data()->setValueRange(QCPRange(minFreq, maxFreq));
 
-    // Set up color gradient (black -> blue -> green -> yellow -> red)
+    // Set up color gradient optimized for typical audio spectrum range
+    // Most audio signals will be between -70 and -40 dB
     QCPColorGradient gradient;
-    gradient.setColorStopAt(0.0, QColor(0, 0, 0));       // Black for -80 dB
-    gradient.setColorStopAt(0.25, QColor(0, 0, 128));    // Dark blue
-    gradient.setColorStopAt(0.5, QColor(0, 255, 0));     // Green
-    gradient.setColorStopAt(0.75, QColor(255, 255, 0));  // Yellow
-    gradient.setColorStopAt(1.0, QColor(255, 0, 0));     // Red for 0 dB
+    gradient.setColorStopAt(0.0, QColor(0, 0, 50));      // Very dark blue for -80 dB
+    gradient.setColorStopAt(0.2, QColor(0, 0, 200));     // Blue for -72 dB
+    gradient.setColorStopAt(0.4, QColor(0, 200, 200));   // Cyan for -64 dB
+    gradient.setColorStopAt(0.6, QColor(0, 255, 0));     // Green for -56 dB
+    gradient.setColorStopAt(0.8, QColor(255, 255, 0));   // Yellow for -48 dB
+    gradient.setColorStopAt(1.0, QColor(255, 0, 0));     // Red for -40 dB and above
     m_colorMap->setGradient(gradient);
 
-    // Set data range (-80 to 0 dB)
-    m_colorMap->setDataRange(QCPRange(-80, 0));
+    // Set data range to focus on typical audio spectrum range
+    // This makes colors more visible for normal signal levels
+    m_colorMap->setDataRange(QCPRange(-80, -40));
 
     // Enable interpolation for smoother display
     m_colorMap->setInterpolate(true);
@@ -360,9 +363,9 @@ void MainWindow::onToggleDisplayMode() {
         m_toggleButton->setText("FFT");
         m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
 
-        // CRITICAL: Set data range to -80 to 0 dB
-        m_colorMap->setDataRange(QCPRange(-80, 0));
-        m_colorScale->setDataRange(QCPRange(-80, 0));
+        // CRITICAL: Set data range to -80 to -40 dB (optimized for typical audio)
+        m_colorMap->setDataRange(QCPRange(-80, -40));
+        m_colorScale->setDataRange(QCPRange(-80, -40));
 
         // Update axes for spectrogram
         m_plot->xAxis->setLabel("Time (updates)");
@@ -371,7 +374,24 @@ void MainWindow::onToggleDisplayMode() {
 
         m_plot->yAxis->setLabel("Frequency (Hz)");
         m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale like FFT mode
-        m_plot->yAxis->setRange(31.5, 20000);
+
+        // Match the frequency range from FFT mode
+        double minFreq = 46.875;  // First bin (bin 1)
+        double maxFreq = 24000.0;  // Nyquist frequency
+        m_plot->yAxis->setRange(minFreq, maxFreq);
+
+        // Use same ticker as FFT mode for consistency
+        QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
+        textTicker->addTick(63,    "63");
+        textTicker->addTick(125,   "125");
+        textTicker->addTick(250,   "250");
+        textTicker->addTick(500,   "500");
+        textTicker->addTick(1000,  "1k");
+        textTicker->addTick(2000,  "2k");
+        textTicker->addTick(4000,  "4k");
+        textTicker->addTick(8000,  "8k");
+        textTicker->addTick(16000, "16k");
+        m_plot->yAxis->setTicker(textTicker);
     } else {
         // Switch to spectrum
         m_plot->graph(0)->setVisible(true);
