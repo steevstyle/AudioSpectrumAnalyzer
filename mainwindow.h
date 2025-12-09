@@ -33,6 +33,7 @@ private:
     void setupSpectrogram();
     void refreshPlot();
     void refreshSpectrogram();
+    int binToLogRow(int bin);  // Convert linear bin to logarithmic row index
 
     QCustomPlot *m_plot;
     QCPColorMap *m_colorMap;
