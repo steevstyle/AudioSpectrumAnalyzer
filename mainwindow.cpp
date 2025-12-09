@@ -303,6 +303,15 @@ void MainWindow::refreshSpectrogram() {
       localCopy = m_cachedSpectrum;
     }
 
+    // Debug: print first time to verify we're getting data
+    static int debugCount = 0;
+    if (debugCount++ < 5) {
+        qDebug() << "Spectrogram update" << debugCount << "- magnitudes size:" << localCopy.magnitudes.size();
+        if (!localCopy.magnitudes.isEmpty()) {
+            qDebug() << "  Sample values:" << localCopy.magnitudes[0] << localCopy.magnitudes[100] << localCopy.magnitudes[200];
+        }
+    }
+
     // Scroll existing data left by one column (past moves left)
     for (int col = 0; col < MAX_SPECTROGRAM_ROWS - 1; ++col) {
         for (int row = 0; row < 512; ++row) {
