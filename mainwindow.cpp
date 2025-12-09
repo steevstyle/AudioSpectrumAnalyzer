@@ -52,6 +52,7 @@ void MainWindow::cacheSpectrum(const SpectrumData &data) {
         for (int i = 0; i < data.magnitudes.size(); i++) {
             m_cachedSpectrum.magnitudes[i] = alpha * m_cachedSpectrum.magnitudes[i] + (1.0 - alpha) * data.magnitudes[i];
         }
+	m_cachedSpectrum.frequencies = data.frequencies;
     }
 }
 
