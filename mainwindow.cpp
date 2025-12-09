@@ -258,8 +258,9 @@ void MainWindow::setupSpectrogram() {
     // Set up data dimensions (time columns × frequency bins)
     m_colorMap->data()->setSize(MAX_SPECTROGRAM_ROWS, 512);
 
-    // Set time range (X) and frequency range (Y)
-    m_colorMap->data()->setRange(QCPRange(0, MAX_SPECTROGRAM_ROWS), QCPRange(31.5, 20000));
+    // Set key/value ranges to match cell indices (0-199 for time, 0-511 for frequency bins)
+    m_colorMap->data()->setKeyRange(QCPRange(0, MAX_SPECTROGRAM_ROWS - 1));
+    m_colorMap->data()->setValueRange(QCPRange(0, 511));
 
     // Set up color gradient (black -> blue -> green -> yellow -> red)
     QCPColorGradient gradient;
@@ -338,13 +339,13 @@ void MainWindow::onToggleDisplayMode() {
         m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
 
         // Update axes for spectrogram
-        m_plot->xAxis->setLabel("Time");
+        m_plot->xAxis->setLabel("Time (updates)");
         m_plot->xAxis->setScaleType(QCPAxis::stLinear);  // Linear for time
-        m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS);
+        m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS - 1);
 
-        m_plot->yAxis->setLabel("Frequency (Hz)");
-        m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale for frequency
-        m_plot->yAxis->setRange(31.5, 20000);
+        m_plot->yAxis->setLabel("Frequency Bin");
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear bin index
+        m_plot->yAxis->setRange(0, 511);
     } else {
         // Switch to spectrum
         m_plot->graph(0)->setVisible(true);
