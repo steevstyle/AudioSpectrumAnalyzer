@@ -51,6 +51,7 @@ private:
 
     bool m_spectrogramMode;
     int m_spectrogramRows;
+    int m_spectrogramWriteCol;  // Circular buffer write position
     static const int MAX_SPECTROGRAM_ROWS = 200;
 
     QTimer *m_uiTimer;

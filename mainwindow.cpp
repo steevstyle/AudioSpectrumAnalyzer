@@ -10,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
         , m_smoothingAlpha(0.85)
         , m_spectrogramMode(false)
         , m_spectrogramRows(0)
+        , m_spectrogramWriteCol(0)
 {
     // Create central widget
     QWidget *centralWidget = new QWidget(this);
@@ -340,28 +341,32 @@ void MainWindow::refreshSpectrogram() {
         lastUpdate = QTime::currentTime();
     }
 
-    // Scroll existing data left by one column (past moves left)
-    for (int col = 0; col < MAX_SPECTROGRAM_ROWS - 1; ++col) {
-        for (int row = 0; row < 512; ++row) {
-            double value = m_colorMap->data()->cell(col + 1, row);
-            m_colorMap->data()->setCell(col, row, value);
-        }
-    }
+    // Use circular buffer - no scrolling needed!
+    // Write to current column position
+    int writeCol = m_spectrogramWriteCol;
 
-    // Add new spectrum data to rightmost column (present on the right)
-    // Map bins logarithmically to rows
-    int rightCol = MAX_SPECTROGRAM_ROWS - 1;
-
-    // First, clear the rightmost column
+    // Clear this column
     for (int row = 0; row < 512; ++row) {
-        m_colorMap->data()->setCell(rightCol, row, -80.0);
+        m_colorMap->data()->setCell(writeCol, row, -80.0);
     }
 
-    // Then, map each bin to its logarithmic row position
+    // Write new spectrum data, mapping bins logarithmically to rows
     for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
         int logRow = binToLogRow(i);
-        m_colorMap->data()->setCell(rightCol, logRow, localCopy.magnitudes[i]);
+        m_colorMap->data()->setCell(writeCol, logRow, localCopy.magnitudes[i]);
     }
+
+    // Advance write position (circular)
+    m_spectrogramWriteCol = (m_spectrogramWriteCol + 1) % MAX_SPECTROGRAM_ROWS;
+
+    // Update X-axis range to show data wrapping around correctly
+    // The "newest" data is just before the write column
+    // Show range so right edge is the newest data
+    int newestCol = (m_spectrogramWriteCol - 1 + MAX_SPECTROGRAM_ROWS) % MAX_SPECTROGRAM_ROWS;
+    int oldestCol = m_spectrogramWriteCol;
+
+    // For now, just keep the simple range
+    // TODO: Could shift the display range to follow the write position
 
     m_spectrogramRows = qMin(m_spectrogramRows + 1, MAX_SPECTROGRAM_ROWS);
 
@@ -379,6 +384,7 @@ void MainWindow::onToggleDisplayMode() {
             }
         }
         m_spectrogramRows = 0;
+        m_spectrogramWriteCol = 0;
 
         // Add color scale to layout when entering spectrogram mode
         m_plot->plotLayout()->addElement(0, 1, m_colorScale);
