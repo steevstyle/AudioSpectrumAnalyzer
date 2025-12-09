@@ -271,8 +271,8 @@ void MainWindow::setupSpectrogram() {
     // Use built-in colormap for better color distribution
     m_colorMap->setGradient(QCPColorGradient::gpJet);  // Rainbow: blue -> cyan -> green -> yellow -> red
 
-    // Set data range to match typical spectrum values (-80 to -40 dB)
-    m_colorMap->setDataRange(QCPRange(-80, -40));
+    // Set data range to match typical spectrum values (-75 to -25 dB)
+    m_colorMap->setDataRange(QCPRange(-75, -25));
 
     // Enable interpolation for smoother display
     m_colorMap->setInterpolate(true);
@@ -407,10 +407,10 @@ void MainWindow::onToggleDisplayMode() {
         m_toggleButton->setText("FFT");
         m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
 
-        // CRITICAL: Set data range to -70 to -50 dB (optimized for typical audio)
-        // Your signals are around -55 to -67 dB, so this centers them in the gradient
-        m_colorMap->setDataRange(QCPRange(-70, -50));
-        m_colorScale->setDataRange(QCPRange(-70, -50));
+        // CRITICAL: Set data range to match actual signal range
+        // Typical range is -75 to -25 dB based on measurements
+        m_colorMap->setDataRange(QCPRange(-75, -25));
+        m_colorScale->setDataRange(QCPRange(-75, -25));
 
         // Update axes for spectrogram
         // Show time relative to "now" (rightmost column = 0)
