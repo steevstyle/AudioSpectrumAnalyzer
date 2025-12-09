@@ -2,6 +2,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QCoreApplication>
+#include <QTime>
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
@@ -296,6 +297,31 @@ void MainWindow::setupSpectrogram() {
     m_colorScale->setVisible(false);
 }
 
+int MainWindow::binToLogRow(int bin) {
+    // Map linear bin index to logarithmic row index
+    // Bins represent frequencies: freq = (bin + 1) * 46.875 Hz
+    // We want to map this logarithmically across 512 rows
+
+    if (bin < 0) return 0;
+    if (bin >= 512) return 511;
+
+    // Frequency for this bin (skip DC, so bin 0 = 46.875 Hz)
+    double freq = (bin + 1) * 46.875;
+
+    // Min and max frequencies
+    double minFreq = 46.875;      // Bin 0
+    double maxFreq = 511 * 46.875; // ~23.9 kHz
+
+    // Logarithmic mapping
+    double logMin = log10(minFreq);
+    double logMax = log10(maxFreq);
+    double logFreq = log10(freq);
+
+    // Map to row index (0-511)
+    int row = (int)((logFreq - logMin) / (logMax - logMin) * 511.0);
+    return qBound(0, row, 511);
+}
+
 void MainWindow::refreshSpectrogram() {
     SpectrumData localCopy;
 
@@ -303,14 +329,15 @@ void MainWindow::refreshSpectrogram() {
       localCopy = m_cachedSpectrum;
     }
 
-    // Debug: print to verify we're getting data and writing it
-    static int debugCount = 0;
-    if (debugCount++ < 10) {
-        qDebug() << "Spectrogram update" << debugCount << "- magnitudes size:" << localCopy.magnitudes.size();
-        if (!localCopy.magnitudes.isEmpty()) {
-            qDebug() << "  Sample values:" << localCopy.magnitudes[0] << localCopy.magnitudes[100] << localCopy.magnitudes[200];
-            qDebug() << "  ColorMap visible:" << m_colorMap->visible() << "Range:" << m_colorMap->dataRange();
+    // Debug: Check actual update rate
+    static QTime lastUpdate;
+    static int updateCount = 0;
+    if (updateCount++ < 20) {
+        if (lastUpdate.isValid()) {
+            int elapsed = lastUpdate.msecsTo(QTime::currentTime());
+            qDebug() << "Spectrogram refresh interval:" << elapsed << "ms";
         }
+        lastUpdate = QTime::currentTime();
     }
 
     // Scroll existing data left by one column (past moves left)
@@ -322,11 +349,18 @@ void MainWindow::refreshSpectrogram() {
     }
 
     // Add new spectrum data to rightmost column (present on the right)
+    // Map bins logarithmically to rows
     int rightCol = MAX_SPECTROGRAM_ROWS - 1;
+
+    // First, clear the rightmost column
+    for (int row = 0; row < 512; ++row) {
+        m_colorMap->data()->setCell(rightCol, row, -80.0);
+    }
+
+    // Then, map each bin to its logarithmic row position
     for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
-        // i corresponds to bin (i+1) since magnitudes skips DC
-        // Store directly at row index i
-        m_colorMap->data()->setCell(rightCol, i, localCopy.magnitudes[i]);
+        int logRow = binToLogRow(i);
+        m_colorMap->data()->setCell(rightCol, logRow, localCopy.magnitudes[i]);
     }
 
     m_spectrogramRows = qMin(m_spectrogramRows + 1, MAX_SPECTROGRAM_ROWS);
@@ -364,32 +398,34 @@ void MainWindow::onToggleDisplayMode() {
         m_colorScale->setDataRange(QCPRange(-70, -50));
 
         // Update axes for spectrogram
-        m_plot->xAxis->setLabel("Time (updates)");
-        m_plot->xAxis->setScaleType(QCPAxis::stLinear);  // Linear for time
+        // Show time relative to "now" (rightmost column = 0)
+        // Left side shows history in seconds ago
+        m_plot->xAxis->setLabel("Time History");
+        m_plot->xAxis->setScaleType(QCPAxis::stLinear);
         m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS - 1);
 
+        // Simple tick labels: just show column numbers for now
+        // You can time how long 200 columns takes and adjust labels accordingly
+        m_plot->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
+
         m_plot->yAxis->setLabel("Frequency (Hz)");
-        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear for bin indices
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear row indices
 
-        // Y-axis shows bin indices (0-511), but we label them as frequencies
-        // Bin to frequency: freq = bin * (48000 / 1024) = bin * 46.875 Hz
-        // For 1 kHz: bin = 1000 / 46.875 = 21.33
+        // Y-axis shows logarithmically-mapped row indices (0-511)
+        m_plot->yAxis->setRange(0, 511);
 
-        // Set range to bin indices
-        m_plot->yAxis->setRange(0, 511);  // Bin indices
-
-        // Create custom ticker with bin positions mapped to frequency labels
+        // Create custom ticker with logarithmic frequency labels
         QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
-        // Convert frequencies to bin indices for tick positions
-        textTicker->addTick(63 * 1024.0 / 48000.0,    "63");     // ~1.35
-        textTicker->addTick(125 * 1024.0 / 48000.0,   "125");    // ~2.67
-        textTicker->addTick(250 * 1024.0 / 48000.0,   "250");    // ~5.33
-        textTicker->addTick(500 * 1024.0 / 48000.0,   "500");    // ~10.67
-        textTicker->addTick(1000 * 1024.0 / 48000.0,  "1k");     // ~21.33
-        textTicker->addTick(2000 * 1024.0 / 48000.0,  "2k");     // ~42.67
-        textTicker->addTick(4000 * 1024.0 / 48000.0,  "4k");     // ~85.33
-        textTicker->addTick(8000 * 1024.0 / 48000.0,  "8k");     // ~170.67
-        textTicker->addTick(16000 * 1024.0 / 48000.0, "16k");    // ~341.33
+        // Map each frequency to its logarithmic row position
+        textTicker->addTick(binToLogRow(63.0 / 46.875 - 1),    "63");
+        textTicker->addTick(binToLogRow(125.0 / 46.875 - 1),   "125");
+        textTicker->addTick(binToLogRow(250.0 / 46.875 - 1),   "250");
+        textTicker->addTick(binToLogRow(500.0 / 46.875 - 1),   "500");
+        textTicker->addTick(binToLogRow(1000.0 / 46.875 - 1),  "1k");
+        textTicker->addTick(binToLogRow(2000.0 / 46.875 - 1),  "2k");
+        textTicker->addTick(binToLogRow(4000.0 / 46.875 - 1),  "4k");
+        textTicker->addTick(binToLogRow(8000.0 / 46.875 - 1),  "8k");
+        textTicker->addTick(binToLogRow(16000.0 / 46.875 - 1), "16k");
         m_plot->yAxis->setTicker(textTicker);
     } else {
         // Clear the FFT graph data before switching
