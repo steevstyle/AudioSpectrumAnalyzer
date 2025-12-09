@@ -273,7 +273,7 @@ void MainWindow::setupSpectrogram() {
     // Set data range (-80 to 0 dB)
     m_colorMap->setDataRange(QCPRange(-80, 0));
 
-    // Color scale (legend)
+    // Color scale (legend) - with proper margins
     QCPColorScale *colorScale = new QCPColorScale(m_plot);
     m_plot->plotLayout()->addElement(0, 1, colorScale);
     colorScale->setType(QCPAxis::atRight);
@@ -283,6 +283,16 @@ void MainWindow::setupSpectrogram() {
     colorScale->axis()->setTickLabelColor(Qt::white);
     colorScale->axis()->setBasePen(QPen(Qt::white));
     colorScale->axis()->setTickPen(QPen(Qt::white));
+
+    // Set margins to prevent squashing
+    m_plot->plotLayout()->setColumnStretchFactor(1, 0.2);  // Color scale takes 20% width
+
+    // Initialize all cells to -80 dB (black/silent)
+    for (int col = 0; col < MAX_SPECTROGRAM_ROWS; ++col) {
+        for (int row = 0; row < 512; ++row) {
+            m_colorMap->data()->setCell(col, row, -80.0);
+        }
+    }
 
     // Initially hide the color map
     m_colorMap->setVisible(false);
@@ -334,6 +344,10 @@ void MainWindow::onToggleDisplayMode() {
         m_plot->yAxis->setLabel("Frequency (Hz)");
         m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale for frequency
         m_plot->yAxis->setRange(31.5, 20000);
+
+        // Ensure layout is properly updated
+        m_plot->plotLayout()->setColumnStretchFactor(0, 0.8);
+        m_plot->plotLayout()->setColumnStretchFactor(1, 0.2);
     } else {
         // Switch to spectrum
         m_plot->graph(0)->setVisible(true);
@@ -350,7 +364,11 @@ void MainWindow::onToggleDisplayMode() {
         m_plot->yAxis->setLabel("Magnitude (dB)");
         m_plot->yAxis->setScaleType(QCPAxis::stLinear);
         m_plot->yAxis->setRange(-80, 0);
+
+        // Full width for spectrum mode
+        m_plot->plotLayout()->setColumnStretchFactor(0, 1.0);
     }
 
+    m_plot->plotLayout()->simplify();  // Clean up layout
     m_plot->replot();
 }
