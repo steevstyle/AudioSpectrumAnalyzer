@@ -4,6 +4,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
+        , m_hasCachedSpectrum(false)
 {
     // Create central widget
     QWidget *centralWidget = new QWidget(this);
@@ -49,10 +50,17 @@ void MainWindow::cacheSpectrum(const SpectrumData &data) {
         // Exponential averaging of current and previous spectra
         const double alpha = 0.85;
 
-        for (int i = 0; i < data.magnitudes.size(); i++) {
-            m_cachedSpectrum.magnitudes[i] = alpha * m_cachedSpectrum.magnitudes[i] + (1.0 - alpha) * data.magnitudes[i];
+        // Ensure sizes match before accessing elements
+        if (m_cachedSpectrum.magnitudes.size() != data.magnitudes.size()) {
+            // Size mismatch - just replace with new data
+            m_cachedSpectrum = data;
+        } else {
+            // Apply exponential averaging
+            for (int i = 0; i < data.magnitudes.size(); i++) {
+                m_cachedSpectrum.magnitudes[i] = alpha * m_cachedSpectrum.magnitudes[i] + (1.0 - alpha) * data.magnitudes[i];
+            }
+            m_cachedSpectrum.frequencies = data.frequencies;
         }
-	m_cachedSpectrum.frequencies = data.frequencies;
     }
 }
 
