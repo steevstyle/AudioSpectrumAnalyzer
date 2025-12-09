@@ -37,7 +37,8 @@ MainWindow::MainWindow(QWidget *parent)
     // Create Reset button - overlay in top right of plot
     m_resetButton = new QPushButton("X", m_plot);
     m_resetButton->setFixedSize(30, 30);
-    m_resetButton->move(m_plot->width() - 35, 5);
+    // Position assuming typical window width (will adjust with resize event if needed)
+    m_resetButton->move(this->width() - 40, 10);
     m_resetButton->setStyleSheet(
         "QPushButton { "
         "  background-color: rgba(200, 0, 0, 180); "
@@ -209,4 +210,12 @@ void MainWindow::onSmoothingChanged(int value) {
 
     // Update label
     m_smoothingLabel->setText(QString("Smoothing: %1").arg(m_smoothingAlpha, 0, 'f', 2));
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+    // Keep button 5 pixels from right edge, 5 pixels from top
+    if (m_resetButton && m_plot) {
+        m_resetButton->move(m_plot->width() - 35, 5);
+    }
 }
