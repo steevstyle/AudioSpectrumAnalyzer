@@ -7,6 +7,8 @@ MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
         , m_hasCachedSpectrum(false)
         , m_smoothingAlpha(0.85)
+        , m_spectrogramMode(false)
+        , m_spectrogramRows(0)
 {
     // Create central widget
     QWidget *centralWidget = new QWidget(this);
@@ -55,7 +57,28 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_resetButton, &QPushButton::clicked,
             this, &MainWindow::onResetDisplayClicked);
 
+    // Create Toggle button - overlay next to reset button
+    m_toggleButton = new QPushButton("Spec", m_plot);
+    m_toggleButton->setFixedSize(50, 30);
+    m_toggleButton->setStyleSheet(
+        "QPushButton { "
+        "  background-color: rgba(0, 120, 200, 180); "
+        "  color: white; "
+        "  border: 1px solid white; "
+        "  border-radius: 5px; "
+        "  font-weight: bold; "
+        "  font-size: 10px; "
+        "} "
+        "QPushButton:hover { "
+        "  background-color: rgba(0, 150, 255, 220); "
+        "}"
+    );
+    m_toggleButton->raise();
+    connect(m_toggleButton, &QPushButton::clicked,
+            this, &MainWindow::onToggleDisplayMode);
+
     setupPlot();
+    setupSpectrogram();
 
     // Create and start DSP thread
     m_dspThread = new DSPThread(this);
@@ -102,16 +125,20 @@ void MainWindow::refreshPlot() {
     if (!m_hasCachedSpectrum)
         return;
 
-    SpectrumData localCopy;
+    if (m_spectrogramMode) {
+        refreshSpectrogram();
+    } else {
+        SpectrumData localCopy;
 
-    { QMutexLocker locker(&m_spectrumMutex);
-      localCopy = m_cachedSpectrum;
+        { QMutexLocker locker(&m_spectrumMutex);
+          localCopy = m_cachedSpectrum;
+        }
+
+        m_plot->graph(0)->setData(localCopy.frequencies,
+                                  localCopy.magnitudes);
+
+        m_plot->replot(QCustomPlot::rpQueuedReplot);
     }
-
-    m_plot->graph(0)->setData(localCopy.frequencies,
-                              localCopy.magnitudes);
-
-    m_plot->replot(QCustomPlot::rpQueuedReplot);
 }
 
 void MainWindow::setupPlot() {
@@ -214,8 +241,116 @@ void MainWindow::onSmoothingChanged(int value) {
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
-    // Keep button 5 pixels from right edge, 5 pixels from top
+    // Keep buttons positioned correctly
     if (m_resetButton && m_plot) {
         m_resetButton->move(m_plot->width() - 35, 5);
     }
+    if (m_toggleButton && m_plot) {
+        m_toggleButton->move(m_plot->width() - 95, 5);
+    }
+}
+
+void MainWindow::setupSpectrogram() {
+    // Create color map - note: we swap axes for horizontal scrolling
+    // X-axis = time (scrolls right to left), Y-axis = frequency
+    m_colorMap = new QCPColorMap(m_plot->xAxis, m_plot->yAxis);
+
+    // Set up data dimensions (time columns × frequency bins)
+    m_colorMap->data()->setSize(MAX_SPECTROGRAM_ROWS, 512);
+
+    // Set time range (X) and frequency range (Y)
+    m_colorMap->data()->setRange(QCPRange(0, MAX_SPECTROGRAM_ROWS), QCPRange(31.5, 20000));
+
+    // Set up color gradient (black -> blue -> green -> yellow -> red)
+    QCPColorGradient gradient;
+    gradient.setColorStopAt(0.0, QColor(0, 0, 0));       // Black for -80 dB
+    gradient.setColorStopAt(0.25, QColor(0, 0, 128));    // Dark blue
+    gradient.setColorStopAt(0.5, QColor(0, 255, 0));     // Green
+    gradient.setColorStopAt(0.75, QColor(255, 255, 0));  // Yellow
+    gradient.setColorStopAt(1.0, QColor(255, 0, 0));     // Red for 0 dB
+    m_colorMap->setGradient(gradient);
+
+    // Set data range (-80 to 0 dB)
+    m_colorMap->setDataRange(QCPRange(-80, 0));
+
+    // Color scale (legend)
+    QCPColorScale *colorScale = new QCPColorScale(m_plot);
+    m_plot->plotLayout()->addElement(0, 1, colorScale);
+    colorScale->setType(QCPAxis::atRight);
+    m_colorMap->setColorScale(colorScale);
+    colorScale->axis()->setLabel("Magnitude (dB)");
+    colorScale->axis()->setLabelColor(Qt::white);
+    colorScale->axis()->setTickLabelColor(Qt::white);
+    colorScale->axis()->setBasePen(QPen(Qt::white));
+    colorScale->axis()->setTickPen(QPen(Qt::white));
+
+    // Initially hide the color map
+    m_colorMap->setVisible(false);
+    colorScale->setVisible(false);
+}
+
+void MainWindow::refreshSpectrogram() {
+    SpectrumData localCopy;
+
+    { QMutexLocker locker(&m_spectrumMutex);
+      localCopy = m_cachedSpectrum;
+    }
+
+    // Scroll existing data left by one column (past moves left)
+    for (int col = 0; col < MAX_SPECTROGRAM_ROWS - 1; ++col) {
+        for (int row = 0; row < 512; ++row) {
+            double value = m_colorMap->data()->cell(col + 1, row);
+            m_colorMap->data()->setCell(col, row, value);
+        }
+    }
+
+    // Add new spectrum data to rightmost column (present on the right)
+    int rightCol = MAX_SPECTROGRAM_ROWS - 1;
+    for (int i = 0; i < localCopy.magnitudes.size() && i < 512; ++i) {
+        m_colorMap->data()->setCell(rightCol, i, localCopy.magnitudes[i]);
+    }
+
+    m_spectrogramRows = qMin(m_spectrogramRows + 1, MAX_SPECTROGRAM_ROWS);
+
+    m_plot->replot(QCustomPlot::rpQueuedReplot);
+}
+
+void MainWindow::onToggleDisplayMode() {
+    m_spectrogramMode = !m_spectrogramMode;
+
+    if (m_spectrogramMode) {
+        // Switch to spectrogram
+        m_plot->graph(0)->setVisible(false);
+        m_colorMap->setVisible(true);
+        m_colorMap->colorScale()->setVisible(true);
+        m_toggleButton->setText("FFT");
+        m_smoothingSlider->setEnabled(false);  // Disable smoothing in spectrogram mode
+
+        // Update axes for spectrogram
+        m_plot->xAxis->setLabel("Time");
+        m_plot->xAxis->setScaleType(QCPAxis::stLinear);  // Linear for time
+        m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS);
+
+        m_plot->yAxis->setLabel("Frequency (Hz)");
+        m_plot->yAxis->setScaleType(QCPAxis::stLogarithmic);  // Log scale for frequency
+        m_plot->yAxis->setRange(31.5, 20000);
+    } else {
+        // Switch to spectrum
+        m_plot->graph(0)->setVisible(true);
+        m_colorMap->setVisible(false);
+        m_colorMap->colorScale()->setVisible(false);
+        m_toggleButton->setText("Spec");
+        m_smoothingSlider->setEnabled(true);
+
+        // Restore axes for spectrum
+        m_plot->xAxis->setLabel("Frequency (Hz)");
+        m_plot->xAxis->setScaleType(QCPAxis::stLogarithmic);
+        m_plot->xAxis->setRange(31.5, 20000);
+
+        m_plot->yAxis->setLabel("Magnitude (dB)");
+        m_plot->yAxis->setScaleType(QCPAxis::stLinear);
+        m_plot->yAxis->setRange(-80, 0);
+    }
+
+    m_plot->replot();
 }

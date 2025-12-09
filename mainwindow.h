@@ -26,14 +26,19 @@ private slots:
 	    void cacheSpectrum(const SpectrumData &data);
             void onResetDisplayClicked();
             void onSmoothingChanged(int value);
+            void onToggleDisplayMode();
 
 private:
     void setupPlot();
+    void setupSpectrogram();
     void refreshPlot();
+    void refreshSpectrogram();
 
     QCustomPlot *m_plot;
+    QCPColorMap *m_colorMap;
     DSPThread *m_dspThread;
     QPushButton *m_resetButton;
+    QPushButton *m_toggleButton;
     QSlider *m_smoothingSlider;
     QLabel *m_smoothingLabel;
 
@@ -41,6 +46,10 @@ private:
     SpectrumData m_cachedSpectrum;
     bool m_hasCachedSpectrum;
     double m_smoothingAlpha;
+
+    bool m_spectrogramMode;
+    int m_spectrogramRows;
+    static const int MAX_SPECTROGRAM_ROWS = 200;
 
     QTimer *m_uiTimer;
 };
