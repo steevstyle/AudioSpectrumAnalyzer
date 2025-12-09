@@ -6,6 +6,8 @@
 #include "dspthread.h"
 #include "spectrumdata.h"
 #include <QPushButton>
+#include <QSlider>
+#include <QLabel>
 #include <QMutex>
 #include <QMutexLocker>
 
@@ -20,6 +22,7 @@ private slots:
             // void updateSpectrum(const SpectrumData &data);
 	    void cacheSpectrum(const SpectrumData &data);
             void onResetDisplayClicked();
+            void onSmoothingChanged(int value);
 
 private:
     void setupPlot();
@@ -28,10 +31,13 @@ private:
     QCustomPlot *m_plot;
     DSPThread *m_dspThread;
     QPushButton *m_resetButton;
+    QSlider *m_smoothingSlider;
+    QLabel *m_smoothingLabel;
 
     QMutex m_spectrumMutex;
     SpectrumData m_cachedSpectrum;
     bool m_hasCachedSpectrum;
+    double m_smoothingAlpha;
 
     QTimer *m_uiTimer;
 };

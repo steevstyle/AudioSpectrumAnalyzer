@@ -1,10 +1,12 @@
 #include "mainwindow.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QCoreApplication>
 
 MainWindow::MainWindow(QWidget *parent)
         : QMainWindow(parent)
         , m_hasCachedSpectrum(false)
+        , m_smoothingAlpha(0.85)
 {
     // Create central widget
     QWidget *centralWidget = new QWidget(this);
@@ -14,13 +16,43 @@ MainWindow::MainWindow(QWidget *parent)
     m_plot = new QCustomPlot(this);
     layout->addWidget(m_plot);
 
-    // Create Reset button
-    m_resetButton = new QPushButton("Reset Display", this);
-    layout->addWidget(m_resetButton);
-    connect(m_resetButton, &QPushButton::clicked,
-            this, &MainWindow::onResetDisplayClicked);
+    // Create smoothing slider at bottom
+    QHBoxLayout *sliderLayout = new QHBoxLayout();
+    m_smoothingLabel = new QLabel("Smoothing: 0.85", this);
+    m_smoothingLabel->setStyleSheet("color: white;");
+    sliderLayout->addWidget(m_smoothingLabel);
+
+    m_smoothingSlider = new QSlider(Qt::Horizontal, this);
+    m_smoothingSlider->setRange(0, 95);  // 0.00 to 0.95
+    m_smoothingSlider->setValue(85);     // 0.85 default
+    m_smoothingSlider->setStyleSheet("QSlider { background: transparent; }");
+    sliderLayout->addWidget(m_smoothingSlider);
+    connect(m_smoothingSlider, &QSlider::valueChanged,
+            this, &MainWindow::onSmoothingChanged);
+
+    layout->addLayout(sliderLayout);
 
     setCentralWidget(centralWidget);
+
+    // Create Reset button - overlay in top right of plot
+    m_resetButton = new QPushButton("X", m_plot);
+    m_resetButton->setFixedSize(30, 30);
+    m_resetButton->move(m_plot->width() - 35, 5);
+    m_resetButton->setStyleSheet(
+        "QPushButton { "
+        "  background-color: rgba(200, 0, 0, 180); "
+        "  color: white; "
+        "  border: 1px solid white; "
+        "  border-radius: 15px; "
+        "  font-weight: bold; "
+        "} "
+        "QPushButton:hover { "
+        "  background-color: rgba(255, 0, 0, 220); "
+        "}"
+    );
+    m_resetButton->raise();  // Ensure it's on top
+    connect(m_resetButton, &QPushButton::clicked,
+            this, &MainWindow::onResetDisplayClicked);
 
     setupPlot();
 
@@ -43,12 +75,13 @@ MainWindow::~MainWindow() {
 
 void MainWindow::cacheSpectrum(const SpectrumData &data) {
     QMutexLocker locker(&m_spectrumMutex);
-    if (!m_hasCachedSpectrum) {    
+    if (!m_hasCachedSpectrum) {
         m_cachedSpectrum = data;
         m_hasCachedSpectrum = true;
     } else {
         // Exponential averaging of current and previous spectra
-        const double alpha = 0.85;
+        // Use the dynamic smoothing factor from the slider
+        double alpha = m_smoothingAlpha;
 
         // Ensure sizes match before accessing elements
         if (m_cachedSpectrum.magnitudes.size() != data.magnitudes.size()) {
@@ -166,6 +199,14 @@ void MainWindow::onResetDisplayClicked() {
         m_plot->replot();
     }
 
-    // Quit the application 
+    // Quit the application
     QCoreApplication::quit();
+}
+
+void MainWindow::onSmoothingChanged(int value) {
+    // Convert slider value (0-95) to alpha (0.00-0.95)
+    m_smoothingAlpha = value / 100.0;
+
+    // Update label
+    m_smoothingLabel->setText(QString("Smoothing: %1").arg(m_smoothingAlpha, 0, 'f', 2));
 }
