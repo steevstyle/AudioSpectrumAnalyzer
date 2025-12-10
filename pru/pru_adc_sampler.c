@@ -37,11 +37,7 @@ volatile register uint32_t __R31;
 #define PRU_FREQ_HZ      200000000
 #define SAMPLE_RATE_HZ   48000
 // Total cycles per sample: 200000000 / 48000 = 4167
-// Measuring ~70 kHz with delay=1343
-// 200000000 / 70000 = 2857 cycles currently
-// Need 4167 - 2857 = 1310 more cycles
-// Add 1310/2 = 655 more iterations
-// New total: 1343 + 655 = 1998
+
 #define SAMPLE_DELAY_CYCLES 1998
 
 // ---------------------------------------------------------------------------
@@ -81,7 +77,7 @@ void main(void)
         // Wait for conversion (poll FIFO)
         while(ADC_FIFO0COUNT == 0) {}
 
-        // Read sample
+        // Read 12-bit sample and bitmask as precaution
         uint16_t sample = (uint16_t)(ADC_FIFO0DATA & 0x0FFF);
 
         // Store in buffer

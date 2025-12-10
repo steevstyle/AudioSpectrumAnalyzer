@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <QDebug>
 
-#define PRU_SHARED_MEM 0x4A310000  // PRU shared memory address
-#define PRU_MEM_SIZE 0x3000        // 12KB
+#define PRU_SHARED_MEM 0x4A310000  // PRU shared memory address, from AM335x TRM
+#define PRU_MEM_SIZE 0x3000        // 12KB, total shared RAM avail
 
 DSPThread::DSPThread(QObject *parent)
         : QThread(parent)
@@ -32,6 +32,8 @@ void DSPThread::initFFT() {
     m_fftOutput = (double*)fftw_malloc(sizeof(double) * FFT_SIZE);
 
     // Create FFTW plan (real to half-complex)
+    // see https://www.fftw.org/fftw3_doc/Using-Plans.html
+    // see https://www.fftw.org/fftw3_doc/The-Halfcomplex_002dformat-DFT.html
     m_fftPlan = fftw_plan_r2r_1d(FFT_SIZE, m_fftInput, m_fftOutput,
                                  FFTW_R2HC, FFTW_ESTIMATE);
 }
@@ -108,6 +110,7 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     }
 
     // Occasional warning if stuck
+    // We should only see this warning if we forget to start PRU firmware
     static int stuck_count = 0;
     if (*ready_flag == last_buffer_read) {
         if (++stuck_count >= 10) {
@@ -129,6 +132,7 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
     }
 
     // Read from the ready buffer and calculate mean for DC removal
+    // ADC yields 12-bit resolution and a range from 0.0-1.8V
     double sum = 0.0;
     for (int i = 0; i < numSamples; i++) {
         uint16_t raw = read_buffer[i];
@@ -161,9 +165,6 @@ QVector<double> DSPThread::readPRUSamples(int numSamples) {
                  << "Avg:" << avg_raw << "(" << (avg_raw * 1.8 / 4095.0) << "V)";
         debug_counter = 0;
     }
-
-    // Don't clear flag - PRU will overwrite with next buffer ID
-    // We track last_buffer_read instead to detect changes
 
     return samples;
 }
@@ -198,8 +199,7 @@ void DSPThread::computeFFT(const QVector<double> &samples,
     const double WINDOW_GAIN = 0.5;  // Hann window coherent gain
     const double NORMALIZATION = FFT_SIZE * WINDOW_GAIN;
 
-    // DC component (skip it - usually just noise)
-    // magnitudes.append(-80.0);
+    // DC component (skip, not useful for visualization)
 
     // Other bins (half-complex format)
     for (int i = 1; i < FFT_SIZE / 2; i++) {
@@ -211,12 +211,11 @@ void DSPThread::computeFFT(const QVector<double> &samples,
         double voltage_amplitude = (mag / NORMALIZATION) * 2.0;
 
         // Convert to dB relative to full scale
-        // dBFS = 20 * log10(amplitude / reference)
         double db = 20.0 * log10(voltage_amplitude / FULL_SCALE_VOLTAGE + 1e-10);
         magnitudes.append(qMax(db, -80.0));
     }
 
-    // Nyquist component
+    // Nyquist component (24kHz)
     double mag_nyq = fabs(m_fftOutput[FFT_SIZE / 2]);
     double voltage_amplitude_nyq = (mag_nyq / NORMALIZATION);
     double db_nyq = 20.0 * log10(voltage_amplitude_nyq / FULL_SCALE_VOLTAGE + 1e-10);
@@ -260,7 +259,6 @@ void DSPThread::run() {
 
         // No fixed delay - pace based on PRU buffer rate
         // At 48 kHz, buffers arrive every ~21ms naturally
-        // This gives ~47 Hz update rate (smooth and responsive)
     }
 }
 
