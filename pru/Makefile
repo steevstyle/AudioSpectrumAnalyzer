@@ -4,7 +4,7 @@ CLPRU = clpru
 LNKPRU = clpru
 
 # Include paths
-INCLUDE = --include_path=$(PRU_CGT)/include
+INCLUDE = --include_path=$(PRU_CGT)/include --include_path=include
 
 # Compiler flags
 CFLAGS = -v3 --hardware_mac=on
