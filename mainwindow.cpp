@@ -261,7 +261,8 @@ void MainWindow::setupSpectrogram() {
     // Set up data dimensions (time columns × frequency bins)
     m_colorMap->data()->setSize(MAX_SPECTROGRAM_ROWS, 512);
 
-    // Set key range for time (0-199 columns)
+    // Set key range for time (0-24 seconds)
+    // We'll update this when entering spectrogram mode
     m_colorMap->data()->setKeyRange(QCPRange(0, MAX_SPECTROGRAM_ROWS - 1));
 
     // Set value range using bin indices (0-511)
@@ -354,6 +355,11 @@ void MainWindow::refreshSpectrogram() {
     // Write to current column position
     int writeCol = m_spectrogramWriteCol;
 
+    // Convert column index to time coordinate
+    double totalTime = 24.0;  // Must match onToggleDisplayMode
+    double timePerColumn = totalTime / MAX_SPECTROGRAM_ROWS;
+    double writeTime = writeCol * timePerColumn;
+
     // Clear this column
     for (int row = 0; row < 512; ++row) {
         m_colorMap->data()->setCell(writeCol, row, -80.0);
@@ -413,15 +419,23 @@ void MainWindow::onToggleDisplayMode() {
         m_colorScale->setDataRange(QCPRange(-75, -25));
 
         // Update axes for spectrogram
-        // Show time relative to "now" (rightmost column = 0)
-        // Left side shows history in seconds ago
-        m_plot->xAxis->setLabel("Time History");
-        m_plot->xAxis->setScaleType(QCPAxis::stLinear);
-        m_plot->xAxis->setRange(0, MAX_SPECTROGRAM_ROWS - 1);
+        // 200 columns takes ~24 seconds to fill
+        // Each column = 24s / 200 = 0.12 seconds
+        double totalTime = 24.0;  // seconds
+        double timePerColumn = totalTime / MAX_SPECTROGRAM_ROWS;
 
-        // Simple tick labels: just show column numbers for now
-        // You can time how long 200 columns takes and adjust labels accordingly
-        m_plot->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
+        // Update colormap key range to use time instead of column indices
+        m_colorMap->data()->setKeyRange(QCPRange(0, totalTime));
+
+        m_plot->xAxis->setLabel("Time (s)");
+        m_plot->xAxis->setScaleType(QCPAxis::stLinear);
+        m_plot->xAxis->setRange(0, totalTime);
+
+        // Tick every 4 seconds
+        QSharedPointer<QCPAxisTickerFixed> timeTicker(new QCPAxisTickerFixed);
+        timeTicker->setTickStep(4.0);
+        timeTicker->setScaleStrategy(QCPAxisTickerFixed::ssMultiples);
+        m_plot->xAxis->setTicker(timeTicker);
 
         m_plot->yAxis->setLabel("Frequency (Hz)");
         m_plot->yAxis->setScaleType(QCPAxis::stLinear);  // Linear bin indices
