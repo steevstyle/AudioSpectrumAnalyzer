@@ -1,13 +1,50 @@
-# Path to pasm on Signals machines
-PASM=$(HOME)/am335x_pru_package/pru_sw/utils/pasm
+# PRU C Compiler toolchain
+PRU_CGT = /home/stopkins/ti-cgt-pru_2.3.3
+CLPRU = clpru
+LNKPRU = clpru
 
-all: pru_adc.bin
+# Include paths
+INCLUDE = --include_path=$(PRU_CGT)/include
 
-pru_adc.bin: pru_adc.p
-	$(PASM) -b pru_adc.p
+# Compiler flags
+CFLAGS = -v3 --hardware_mac=on
+
+# Linker flags
+LDFLAGS = -z -cr --ram_model -i$(PRU_CGT)/lib
+
+# Target
+TARGET = pru_adc_sampler.out
+
+# Source files
+C_SOURCES = pru_adc_sampler.c
+ASM_SOURCES = delay.asm
+
+# Object files
+C_OBJS = $(C_SOURCES:.c=.obj)
+ASM_OBJS = $(ASM_SOURCES:.asm=.obj)
+ALL_OBJS = $(C_OBJS) $(ASM_OBJS)
+
+# Linker command file
+LINKER_CMD = pru0_linker.cmd
+
+all: $(TARGET)
+
+# Compile C source to object file
+%.obj: %.c
+	$(CLPRU) $(CFLAGS) $(INCLUDE) -c $< -o $@
+
+# Compile assembly source to object file
+%.obj: %.asm
+	$(CLPRU) $(CFLAGS) $(INCLUDE) -c $< -o $@
+
+# Link object files to create output
+$(TARGET): $(ALL_OBJS) $(LINKER_CMD)
+	$(LNKPRU) $(LDFLAGS) $(ALL_OBJS) \
+		-m $(TARGET:.out=.map) \
+		$(LINKER_CMD) \
+		-o $(TARGET)
 
 clean:
-	rm -f pru_adc.bin *.lst
+	rm -f *.obj *.out *.map
 
-install: pru_adc.bin
-	# Transfer binary to BeagleBone
+.PHONY: all clean
