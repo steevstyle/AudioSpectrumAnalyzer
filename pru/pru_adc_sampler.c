@@ -43,6 +43,8 @@ volatile register uint32_t __R31;
 // ---------------------------------------------------------------------------
 // Delay helper - external assembly function for deterministic timing
 // Implemented in delay.asm: 2 cycles per iteration (SUB + QBNE)
+// delay_cylces was abandoned for IEP timer implementation for sampling
+// but delay_cylces is still called once upon ADC initialization
 // ---------------------------------------------------------------------------
 extern void delay_cycles(uint32_t cycles);
 
@@ -103,7 +105,7 @@ void main(void)
         while (IEP_COUNT < next_sample_time) {
             // Busy wait with cycle-accurate timing
         }
-
+        
         // Schedule next sample exactly 4167 cycles from last one
         next_sample_time += (PRU_FREQ_HZ / SAMPLE_RATE_HZ);
     }
